@@ -133,6 +133,13 @@ export function App() {
 }
 
 type PJ = { projects: { path: string; name: string; isApp: boolean }[] };
+type ChatSetup = { provider: string; model: string; cwd: string };
+function loadChatSetup(): ChatSetup | null {
+  try {
+    const setup = JSON.parse(localStorage.getItem('last-chat-setup') ?? 'null');
+    return setup && ['claude', 'codex'].includes(setup.provider) && typeof setup.model === 'string' && typeof setup.cwd === 'string' ? setup : null;
+  } catch { return null; }
+}
 function NewChat({ open, onClose, preset }: { open: boolean; onClose: () => void; preset: { cwd?: string; provider?: string } }) {
   const { settings, refresh } = useApp();
   const { data: models } = useFetch<Record<string, string[]>>(open ? '/api/models' : null);
@@ -141,17 +148,23 @@ function NewChat({ open, onClose, preset }: { open: boolean; onClose: () => void
   const [model, setModel] = useState('');
   const [cwd, setCwd] = useState('');
   const [busy, setBusy] = useState(false);
+  const [lastSetup, setLastSetup] = useState(loadChatSetup);
 
   useEffect(() => {
     if (!open) return;
-    const p = preset.provider ?? settings?.defaultAgent ?? 'claude';
-    setProvider(p); setModel(settings?.defaultModels?.[p] ?? ''); setCwd(preset.cwd ?? settings?.defaultProject ?? '');
-  }, [open, preset, settings]);
+    const p = preset.provider ?? lastSetup?.provider ?? settings?.defaultAgent ?? 'claude';
+    setProvider(p);
+    setModel(lastSetup?.provider === p ? lastSetup.model : settings?.defaultModels?.[p] ?? '');
+    setCwd(preset.cwd ?? lastSetup?.cwd ?? settings?.defaultProject ?? '');
+  }, [open, preset, settings, lastSetup]);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true);
     try {
       const { id } = await api<{ id: string }>('/api/sessions', { cwd: cwd.trim() || undefined, provider, model: model.trim() });
+      const setup = { provider, model: model.trim(), cwd: cwd.trim() };
+      setLastSetup(setup);
+      try { localStorage.setItem('last-chat-setup', JSON.stringify(setup)); } catch { /* storage may be unavailable */ }
       await refresh(); onClose(); go('chat/' + id);
     } catch { /* toast shown by api() */ }
     setBusy(false);
@@ -159,7 +172,7 @@ function NewChat({ open, onClose, preset }: { open: boolean; onClose: () => void
   return (
     <Modal open={open} onClose={onClose} title="New chat">
       <form onSubmit={create}>
-        <Seg label="Agent" value={provider as 'claude' | 'codex'} options={[['claude', 'Claude'], ['codex', 'Codex']]} onChange={(p) => { setProvider(p); setModel(settings?.defaultModels?.[p] ?? ''); }} />
+        <Seg label="Agent" value={provider as 'claude' | 'codex'} options={[['claude', 'Claude'], ['codex', 'Codex']]} onChange={(p) => { setProvider(p); setModel(lastSetup?.provider === p ? lastSetup.model : settings?.defaultModels?.[p] ?? ''); }} />
         <label className="f">Model
           <input list="models-dl" value={model} onChange={(e) => setModel(e.target.value)} placeholder="default" />
           <datalist id="models-dl">{(models?.[provider] ?? []).map((m) => <option key={m} value={m} />)}</datalist>
