@@ -4,6 +4,7 @@ import { useApp } from '../ctx';
 import { Empty, Icon, IconBtn, Modal, Seg, Skeleton, ago, confirmDlg, toast, useFetch } from '../ui';
 
 type Proj = { path: string; name: string; favorite?: boolean; instructions?: string; registered: boolean; sessions: number; lastUsed: number; isApp: boolean; repo: boolean; branch: string; remote: string; dirty: number; exists: boolean };
+type FolderList = { path: string; parent: string; drives: string[]; folders: { name: string; path: string }[] };
 
 export function Projects() {
   const { newChat, go } = useApp();
@@ -12,6 +13,10 @@ export function Projects() {
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [add, setAdd] = useState(false);
   const [path, setPath] = useState('');
+  const [folders, setFolders] = useState<FolderList | null>(null);
+  const [browsing, setBrowsing] = useState(false);
+  const [folderName, setFolderName] = useState('');
+  const [creating, setCreating] = useState(false);
   const [edit, setEdit] = useState<Proj | null>(null);
   const [instr, setInstr] = useState('');
 
@@ -20,6 +25,13 @@ export function Projects() {
 
   const post = (act: string, body: object) => api('/api/projects/' + act, body).then(reload);
   const fav = (p: Proj) => post('update', { path: p.path, favorite: !p.favorite });
+  const browse = async (target = '') => {
+    setBrowsing(true);
+    try {
+      const result = await api<FolderList>('/api/projects/folders?path=' + encodeURIComponent(target));
+      setFolders(result); setPath(result.path);
+    } catch { /* toast */ } finally { setBrowsing(false); }
+  };
 
   const card = (p: Proj) => (
     <div key={p.path} className="card col" style={{ gap: 6 }}>
@@ -43,7 +55,7 @@ export function Projects() {
     <div className="page">
       <div className="page-head">
         <div className="grow"><h1>Projects</h1><p>Folders you've worked in, plus any you add.</p></div>
-        <button className="btn primary" onClick={() => setAdd(true)}><Icon n="plus" /> Add project</button>
+        <button className="btn primary" onClick={() => { setAdd(true); setFolders(null); setFolderName(''); void browse(); }}><Icon n="plus" /> Add project</button>
       </div>
       <div className="row">
         <input className="grow" type="search" aria-label="Search projects" placeholder="Search projects…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -65,7 +77,30 @@ export function Projects() {
       <Modal open={add} onClose={() => setAdd(false)} title="Add project">
         <form onSubmit={async (e) => { e.preventDefault(); try { await post('add', { path: path.trim() }); setAdd(false); setPath(''); } catch { /* toast */ } }}>
           <label className="f">Folder path<input autoFocus value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\code\my-project" /></label>
-          <div className="row" style={{ justifyContent: 'flex-end' }}><button type="button" className="btn" onClick={() => setAdd(false)}>Cancel</button><button className="btn primary" disabled={!path.trim()}>Add</button></div>
+          <div className="row" style={{ marginBottom: 12 }}>
+            <button type="button" className="btn" disabled={browsing || creating} onClick={() => void browse(path.trim())}>Browse</button>
+            <button type="button" className="btn" disabled={browsing || creating || !folders || folders.parent === folders.path} onClick={() => void browse(folders!.parent)}>Up</button>
+            {folders && <select aria-label="Drive" value={folders.drives.find((d) => folders.path.toLowerCase().startsWith(d.toLowerCase())) ?? ''} disabled={browsing || creating} onChange={(e) => void browse(e.target.value)}>
+              <option value="" disabled>Select drive</option>{folders.drives.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>}
+          </div>
+          {folders && <>
+            <div className="muted xs" style={{ overflowWrap: 'anywhere', marginBottom: 6 }}>Current folder: {folders.path}</div>
+            <div className="col" aria-label="Folders" aria-busy={browsing} style={{ maxHeight: 240, overflowY: 'auto', gap: 4, marginBottom: 12 }}>
+              {folders.folders.map((f) => <button key={f.path} type="button" className="btn" style={{ justifyContent: 'flex-start', textAlign: 'left' }} disabled={browsing || creating} onClick={() => void browse(f.path)}><Icon n="folder" /><span className="ell">{f.name}</span></button>)}
+              {!folders.folders.length && <span className="muted small">No subfolders</span>}
+            </div>
+            <div className="row" style={{ marginBottom: 16 }}>
+              <input className="grow" aria-label="New folder name" placeholder="New folder name" value={folderName} disabled={creating} onChange={(e) => setFolderName(e.target.value)} />
+              <button type="button" className="btn" disabled={browsing || creating || !folderName.trim()} onClick={async () => {
+                setCreating(true);
+                try { const result = await api<{ path: string }>('/api/projects/mkdir', { path: folders.path, name: folderName.trim() }); setFolderName(''); await browse(result.path); }
+                catch { /* toast */ } finally { setCreating(false); }
+              }}>{creating ? 'Creating...' : 'New folder'}</button>
+            </div>
+          </>}
+          {browsing && <p className="muted small" role="status">Loading folders...</p>}
+          <div className="row" style={{ justifyContent: 'flex-end' }}><button type="button" className="btn" onClick={() => setAdd(false)}>Cancel</button><button className="btn primary" disabled={!path.trim() || browsing || creating}>Add</button></div>
         </form>
       </Modal>
 

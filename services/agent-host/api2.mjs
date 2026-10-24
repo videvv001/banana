@@ -170,6 +170,31 @@ export function createApi({ store, appRoot, dataDir, sendMessage, interrupt, isR
         return json(200, { text: buf.subarray(-60000).toString('utf8') }), true;
       }
 
+      // Project selection intentionally allows browsing outside registered project roots.
+      if (is('GET', /^\/api\/projects\/folders$/)) {
+        try {
+          const cwd = path.resolve(q('path') || appRoot);
+          const entries = await fs.promises.readdir(cwd, { withFileTypes: true });
+          const drives = process.platform === 'win32'
+            ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((d) => `${d}:\\`).filter((d) => fs.existsSync(d))
+            : ['/'];
+          return json(200, { path: cwd, parent: path.dirname(cwd), drives,
+            folders: entries.filter((e) => e.isDirectory()).map((e) => ({ name: e.name, path: path.join(cwd, e.name) })).sort((a, b) => a.name.localeCompare(b.name)) }), true;
+        } catch (e) { return json(400, { error: `Cannot browse folder: ${e.message}` }), true; }
+      }
+      if (is('POST', /^\/api\/projects\/mkdir$/)) {
+        const b = await readJson(req);
+        if (typeof b.path !== 'string' || !path.isAbsolute(b.path) || typeof b.name !== 'string'
+          || !b.name.trim() || b.name !== b.name.trim() || /[<>:"/\\|?*\x00-\x1f]/.test(b.name)
+          || /[. ]$/.test(b.name) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(b.name))
+          return json(400, { error: 'Enter a valid folder name without path separators.' }), true;
+        try {
+          const dir = path.join(b.path, b.name);
+          await fs.promises.mkdir(dir);
+          return json(200, { path: dir }), true;
+        } catch (e) { return json(400, { error: `Cannot create folder: ${e.message}` }), true; }
+      }
+
       // projects
       if (is('GET', /^\/api\/projects$/)) {
         const reg = projects(), all = new Map();
