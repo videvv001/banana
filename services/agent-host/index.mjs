@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { openStore } from './store.mjs';
 import { startTurn } from './claude.mjs';
 import { startCodexTurn } from './codex.mjs';
-import { cliStatus, cliInstall, cliLogin, isCli } from './clis.mjs';
+import { codexModels, cliStatus, cliInstall, cliLogin, isCli } from './clis.mjs';
 
 const PORT = +process.env.AGENT_PORT;
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -104,6 +104,7 @@ http.createServer(async (req, res) => {
       req.on('close', () => clients.delete(res));
       return;
     }
+    if (is('GET', /^\/api\/models$/)) return json(200, { claude: ['opus', 'sonnet', 'haiku'], codex: codexModels() });
     if (is('GET', /^\/api\/clis$/)) return json(200, Object.fromEntries(await Promise.all(['claude', 'codex'].map(async (n) => [n, await cliStatus(n)]))));
     if (is('POST', /^\/api\/clis\/(\w+)\/(install|login)$/)) {
       const [, name, action] = req.m;

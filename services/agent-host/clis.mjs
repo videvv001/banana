@@ -1,5 +1,8 @@
 // Setup helpers for the claude / codex CLIs: status, npm install, subscription login (opens the browser on this machine).
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const CLIS = {
   claude: { pkg: '@anthropic-ai/claude-code', status: ['auth', 'status'], login: ['auth', 'login', '--claudeai'] },
@@ -28,6 +31,14 @@ export async function cliStatus(name) {
   let detail = s.out.split('\n')[0];
   try { const j = JSON.parse(s.out); detail = [j.email, j.subscriptionType].filter(Boolean).join(' · '); } catch { /* codex prints plain text */ }
   return { installed: true, version: v.out.split('\n')[0], loggedIn: s.code === 0, detail };
+}
+
+// Codex caches its model catalog locally; hidden entries aren't meant for pickers.
+export function codexModels() {
+  try {
+    const f = path.join(os.homedir(), '.codex', 'models_cache.json');
+    return JSON.parse(fs.readFileSync(f, 'utf8')).models.filter((m) => m.visibility === 'list').map((m) => m.slug);
+  } catch { return []; }
 }
 
 export async function cliInstall(name) {

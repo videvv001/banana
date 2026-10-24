@@ -29,6 +29,8 @@ export function App() {
   const [current, setCurrent] = useState<string | null>(null);
   const [provider, setProvider] = useState('claude');
   const [model, setModel] = useState('');
+  const [models, setModels] = useState<Record<string, string[]>>({});
+  useEffect(() => { fetch('/api/models').then((r) => r.json()).then(setModels).catch(() => {}); }, []);
 
   useEffect(() => { if (current) loadSession(current).catch(() => {}); }, [current, loadSession]);
   // After a reconnect the log may have gaps for the open session; re-pull it.
@@ -56,7 +58,7 @@ export function App() {
             <option value="claude">Claude</option><option value="codex">Codex</option>
           </select>
           <input list="models" value={model} onChange={(e) => setModel(e.target.value)} placeholder="model (default)" />
-          <datalist id="models">{(provider === 'claude' ? ['opus', 'sonnet', 'haiku'] : ['gpt-5-codex', 'gpt-5']).map((m) => <option key={m} value={m} />)}</datalist>
+          <datalist id="models">{(models[provider] ?? []).map((m) => <option key={m} value={m} />)}</datalist>
           <button onClick={create}>+ New chat</button>
           <button onClick={() => setCurrent('settings')}>⚙ Settings</button>
           {sessions.map((s) => (
