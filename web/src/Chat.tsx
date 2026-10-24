@@ -79,7 +79,7 @@ export function Chat({ session, events, partial }: { session: Session; events: E
         <textarea value={text} placeholder={running ? 'Claude is working…' : 'Message Claude (Enter to send, Shift+Enter for newline)'}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
-        {running ? <button onClick={() => api(`/api/sessions/${session.id}/interrupt`, {})}>Stop</button> : <button onClick={send}>Send</button>}
+        {running ? <button onClick={() => api(`/api/sessions/${session.id}/interrupt`, {})}>Stop</button> : <button onClick={send}>Go</button>}
       </div>
     </div>
   );
