@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api';
 import { Chat } from './Chat';
+import { Settings } from './Settings';
 import { useEvents } from './useEvents';
 
 type Svc = { pid: number | null; healthy: boolean; restarts: number };
@@ -50,13 +51,14 @@ export function App() {
       <div className="body">
         <aside>
           <button onClick={create}>+ New chat</button>
+          <button onClick={() => setCurrent('settings')}>⚙ Settings</button>
           {sessions.map((s) => (
             <div key={s.id} className={`item${s.id === current ? ' sel' : ''}`} onClick={() => setCurrent(s.id)}>
               {s.status === 'running' && <span className="ok">● </span>}{s.title || 'New chat'}
             </div>
           ))}
         </aside>
-        <main>{session ? <Chat key={session.id} session={session} events={evs} partial={partial[session.id] ?? ''} /> : <div className="dim pad">Pick or create a chat.</div>}</main>
+        <main>{current === 'settings' ? <Settings /> : session ?<Chat key={session.id} session={session} events={evs} partial={partial[session.id] ?? ''} /> : <div className="dim pad">Pick or create a chat.</div>}</main>
       </div>
       <StatusBar online={online} />
     </div>

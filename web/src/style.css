@@ -37,3 +37,6 @@ main { flex: 1; min-width: 0; }
 .previews { display: flex; gap: 8px; padding: 8px 16px 0; }
 .preview { position: relative; }
 .preview button { position: absolute; top: -6px; right: -6px; padding: 0 6px; border-radius: 50%; }
+
+.clirow { display: flex; gap: 12px; align-items: center; margin: 12px 0; }
+.clirow b { width: 60px; }

@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { openStore } from './store.mjs';
 import { startTurn } from './claude.mjs';
+import { cliStatus, cliInstall, cliLogin, isCli } from './clis.mjs';
 
 const PORT = +process.env.AGENT_PORT;
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -99,6 +100,14 @@ http.createServer(async (req, res) => {
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;
+    }
+    if (is('GET', /^\/api\/clis$/)) return json(200, Object.fromEntries(await Promise.all(['claude', 'codex'].map(async (n) => [n, await cliStatus(n)]))));
+    if (is('POST', /^\/api\/clis\/(\w+)\/(install|login)$/)) {
+      const [, name, action] = req.m;
+      if (!isCli(name)) return json(404, { error: 'unknown cli' });
+      if (action === 'install') return json(200, await cliInstall(name));
+      cliLogin(name);
+      return json(200, { ok: true });
     }
     if (is('GET', /^\/api\/sessions$/)) return json(200, { sessions: store.listSessions(), maxSeq: store.maxSeq() });
     if (is('POST', /^\/api\/sessions$/)) {
