@@ -14,9 +14,10 @@ export function openStore(file) {
       kind TEXT NOT NULL, data TEXT NOT NULL, ts INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS events_session ON events(session_id, seq);
   `);
-  for (const c of ["provider TEXT NOT NULL DEFAULT 'claude'", "model TEXT NOT NULL DEFAULT ''", "ext_id TEXT NOT NULL DEFAULT ''"]) {
+  for (const c of ["provider TEXT NOT NULL DEFAULT 'claude'", "model TEXT NOT NULL DEFAULT ''", "ext_id TEXT NOT NULL DEFAULT ''", 'pinned INTEGER NOT NULL DEFAULT 0', 'archived INTEGER NOT NULL DEFAULT 0', "cmp TEXT NOT NULL DEFAULT ''"]) {
     try { db.exec(`ALTER TABLE sessions ADD COLUMN ${c}`); } catch { /* already migrated */ }
   }
+  db.exec('CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT NOT NULL)');
   const parse =(r) => ({ ...r, data: JSON.parse(r.data) });
   const p = {
     insertSession: db.prepare('INSERT INTO sessions(id, cwd, provider, model, updated_at) VALUES(?, ?, ?, ?, ?)'),
@@ -29,6 +30,15 @@ export function openStore(file) {
     insertEvent: db.prepare('INSERT INTO events(session_id, kind, data, ts) VALUES(?, ?, ?, ?)'),
     after: db.prepare('SELECT * FROM events WHERE seq > ? ORDER BY seq'),
     bySession: db.prepare('SELECT * FROM events WHERE session_id = ? ORDER BY seq'),
+    setFlag: (col) => db.prepare(`UPDATE sessions SET ${col} = ? WHERE id = ?`),
+    delSession: db.prepare('DELETE FROM sessions WHERE id = ?'),
+    delEvents: db.prepare('DELETE FROM events WHERE session_id = ?'),
+    setCmp: db.prepare('UPDATE sessions SET cmp = ? WHERE id = ?'),
+    setAgent: db.prepare('UPDATE sessions SET provider = ?, model = ? WHERE id = ?'),
+    resultEvents: db.prepare("SELECT session_id, kind, data, ts FROM events WHERE kind IN ('user','result','notice') ORDER BY seq"),
+    kvGet: db.prepare('SELECT v FROM kv WHERE k = ?'),
+    kvSet: db.prepare('INSERT INTO kv(k, v) VALUES(?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v'),
+    search: db.prepare("SELECT DISTINCT session_id FROM events WHERE kind IN ('user','assistant') AND data LIKE ? ESCAPE '!' LIMIT 300"),
     maxSeq: db.prepare('SELECT COALESCE(MAX(seq), 0) AS m FROM events'),
   };
   return {
@@ -47,6 +57,17 @@ export function openStore(file) {
     eventsAfter: (seq) => p.after.all(seq).map(parse),
     sessionEvents: (id) => p.bySession.all(id).map(parse),
     maxSeq: () => p.maxSeq.get().m,
+    // pinned / archived are 0|1 flags; col names are fixed here, never caller input.
+    setPinned: (id, v) => p.setFlag('pinned').run(v ? 1 : 0, id),
+    setArchived: (id, v) => p.setFlag('archived').run(v ? 1 : 0, id),
+    setAgent: (id, provider, model) => p.setAgent.run(provider, model, id),
+    setCmp: (id, g) => p.setCmp.run(g, id),
+    deleteSession(id) { p.delEvents.run(id); p.delSession.run(id); },
+    search: (q) => p.search.all(`%${q.replace(/[!%_]/g, '!$&')}%`).map((r) => r.session_id),
+    turnEvents: () => p.resultEvents.all().map(parse),
+    // Small single-user config blobs (settings, projects, workflows, runs) live as JSON in kv.
+    kvGet: (k, dflt) => { const r = p.kvGet.get(k); return r ? JSON.parse(r.v) : dflt; },
+    kvSet: (k, v) => p.kvSet.run(k, JSON.stringify(v)),
     close: () => db.close(),
   };
 }

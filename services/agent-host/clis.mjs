@@ -12,9 +12,10 @@ export const isCli = (name) => Object.hasOwn(CLIS, name);
 
 // Windows needs a shell to resolve .cmd shims.
 const sh = process.platform === 'win32';
+const q = (a) => (sh && /\s/.test(a) ? `"${a}"` : a);
 function run(cmd, args, timeout = 15000) {
   return new Promise((resolve) => {
-    const p = spawn(cmd, args, { shell: sh, windowsHide: true, timeout });
+    const p = spawn(q(cmd), args, { shell: sh, windowsHide: true, timeout });
     let out = '';
     p.stdout.on('data', (d) => { out += d; });
     p.stderr.on('data', (d) => { out += d; });
@@ -23,11 +24,11 @@ function run(cmd, args, timeout = 15000) {
   });
 }
 
-export async function cliStatus(name) {
+export async function cliStatus(name, bin = name) {
   const c = CLIS[name];
-  const v = await run(name, ['--version']);
+  const v = await run(bin, ['--version']);
   if (v.code !== 0) return { installed: false, loggedIn: false };
-  const s = await run(name, c.status);
+  const s = await run(bin, c.status);
   let detail = s.out.split('\n')[0];
   try { const j = JSON.parse(s.out); detail = [j.email, j.subscriptionType].filter(Boolean).join(' · '); } catch { /* codex prints plain text */ }
   return { installed: true, version: v.out.split('\n')[0], loggedIn: s.code === 0, detail };

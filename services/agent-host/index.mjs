@@ -10,6 +10,7 @@ import { openStore } from './store.mjs';
 import { startTurn } from './claude.mjs';
 import { startCodexTurn } from './codex.mjs';
 import { codexModels, cliStatus, cliInstall, cliLogin, isCli } from './clis.mjs';
+import { createApi } from './api2.mjs';
 
 const PORT = +process.env.AGENT_PORT;
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -19,6 +20,7 @@ const store = openStore(path.join(process.env.DATA_DIR, 'vbanana.db'));
 const clients = new Set(); // SSE responses
 const turns = new Map(); // sessionId -> running turn
 const approvalOwner = new Map(); // requestId -> {sessionId, input}
+const turnEndHooks = []; // workflow runner listens here
 
 const broadcast = (ev, withId) => {
   const msg = `${withId ? `id: ${ev.seq}\n` : ''}data: ${JSON.stringify(ev)}\n\n`;
@@ -43,6 +45,16 @@ function checkpoint(cwd) {
   } catch { /* no git / nothing to commit: not worth failing the turn */ }
 }
 
+// Agent + project instructions ride along with a conversation's first prompt only; resumed turns already have them.
+function withInstructions(s, text) {
+  if (s.started) return text;
+  const proj = store.kvGet('projects', {});
+  const key = Object.keys(proj).find((k) => path.resolve(k) === path.resolve(s.cwd));
+  const parts = [api2.settings().instructions?.[s.provider], proj[key]?.instructions].filter((x) => x?.trim());
+  return parts.length ? 'Instructions for this conversation:\n' + parts.join('\n\n') + '\n\n---\n' + text : text;
+}
+const bin = (provider) => api2.settings().cliPaths?.[provider]?.trim() || provider;
+
 function sendMessage(id, text, system = false, images = []) {
   const s = store.getSession(id);
   if (!s) return 404;
@@ -54,24 +66,32 @@ function sendMessage(id, text, system = false, images = []) {
   const owned = new Set();
   const codex = s.provider === 'codex';
   const turn = (codex ? startCodexTurn : startTurn)({
-    id, cwd: s.cwd, started: !!s.started, extId: s.ext_id, text, images, model: s.model || undefined,
+    id, cwd: s.cwd, started: !!s.started, extId: s.ext_id, text: system ? text : withInstructions(s, text), images, model: s.model || undefined, bin: bin(s.provider),
     readOnly: s.cwd === APP_ROOT, // ponytail: codex isn't fenced by ai-settings.json, so it can't write to the app itself
     on: {
       init: (extId) => { if (!s.started) store.setStarted(id, extId); },
       message: (kind, data) => emit(id, kind, data),
       delta: (t) => ephemeral(id, 'delta', { text: t }),
-      approval: (req) => { owned.add(req.request_id); approvalOwner.set(req.request_id, { sessionId: id, input: req.input }); emit(id, 'approval', req); },
+      approval: (req) => {
+        if (api2.autoAllow(req.tool_name)) return queueMicrotask(() => turns.get(id)?.respond(req.request_id, true, req.input)); // policy: read-only tools skip the prompt
+        owned.add(req.request_id); approvalOwner.set(req.request_id, { sessionId: id, input: req.input }); emit(id, 'approval', req); },
       exit: ({ gotResult, stderr }) => {
         turns.delete(id);
         for (const rid of owned) if (approvalOwner.delete(rid)) emit(id, 'approval_done', { request_id: rid, allow: false, expired: true });
         if (!gotResult) emit(id, 'notice', { text: `Turn ended without a result.\n${stderr}`.trim(), error: true });
         setStatus(id, 'idle');
+        for (const h of turnEndHooks) { try { h(id, gotResult); } catch { /* a hook must not break turn cleanup */ } }
       },
     },
   });
   turns.set(id, { ...turn, owned });
   return 202;
 }
+
+const api2 = createApi({
+  store, appRoot: APP_ROOT, dataDir: process.env.DATA_DIR, sendMessage,
+  interrupt: (id) => turns.get(id)?.kill(), isRunning: (id) => turns.has(id), onTurnEnd: (fn) => turnEndHooks.push(fn),
+});
 
 const readJson = (req) => new Promise((resolve, reject) => {
   let body = '';
@@ -105,7 +125,12 @@ http.createServer(async (req, res) => {
       return;
     }
     if (is('GET', /^\/api\/models$/)) return json(200, { claude: ['opus', 'sonnet', 'haiku'], codex: codexModels() });
-    if (is('GET', /^\/api\/clis$/)) return json(200, Object.fromEntries(await Promise.all(['claude', 'codex'].map(async (n) => [n, await cliStatus(n)]))));
+    if (is('GET', /^\/api\/clis$/)) return json(200, Object.fromEntries(await Promise.all(['claude', 'codex'].map(async (n) => [n, await cliStatus(n, bin(n))]))));
+    if (is('POST', /^\/api\/clis\/(\w+)\/test$/)) {
+      if (!isCli(req.m[1])) return json(404, { error: 'unknown cli' });
+      const t0 = Date.now();
+      return json(200, { ...(await cliStatus(req.m[1], bin(req.m[1]))), ms: Date.now() - t0 });
+    }
     if (is('POST', /^\/api\/clis\/(\w+)\/(install|login)$/)) {
       const [, name, action] = req.m;
       if (!isCli(name)) return json(404, { error: 'unknown cli' });
@@ -142,6 +167,7 @@ http.createServer(async (req, res) => {
       emit(owner.sessionId, 'approval_done', { request_id: req.m[1], allow: !!allow });
       return json(200, { ok: true });
     }
+    if (await api2.handle(req, res, url, json, readJson)) return;
     json(404, { error: 'not found' });
   } catch (e) {
     json(500, { error: String(e.message ?? e) });

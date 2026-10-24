@@ -12,7 +12,7 @@ const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
  *   approval(req: {request_id: string, tool_name: string, input: any}): void,
  *   exit(info: {gotResult: boolean, stderr: string}): void }}} o
  */
-export function startTurn({ id, cwd, started, text, images = [], model, on }) {
+export function startTurn({ id, cwd, started, text, images = [], model, bin = 'claude', on }) {
   const args = [...(model ? ['--model', model] : []),'-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio', ...(started ? ['--resume', id] : ['--session-id', id])];
   // Windows needs a shell to resolve claude.cmd; elsewhere spawn directly.
@@ -23,7 +23,7 @@ export function startTurn({ id, cwd, started, text, images = [], model, on }) {
       '--system-prompt-snapshot', 'off'); // snapshot would freeze old rules into resumed chats
   }
   const quote = (a) => (process.platform === 'win32' && /\s/.test(a) ? `"${a}"` : a);
-  const proc = spawn('claude', args.map(quote), { cwd, shell: process.platform === 'win32', windowsHide: true, env: { ...process.env, VB_SESSION: id } });
+  const proc = spawn(quote(bin), args.map(quote), { cwd, shell: process.platform === 'win32', windowsHide: true, env: { ...process.env, VB_SESSION: id } });
   let gotResult = false, stderr = '', buf = '';
 
   const handle = (m) => {
@@ -35,7 +35,7 @@ export function startTurn({ id, cwd, started, text, images = [], model, on }) {
     else if (m.type === 'user') on.message('tool_result', { ...m.message, parent: m.parent_tool_use_id });
     else if (m.type === 'result') {
       gotResult = true;
-      on.message('result', { is_error: m.is_error, subtype: m.subtype, result: m.result, duration_ms: m.duration_ms, cost: m.total_cost_usd });
+      on.message('result', { is_error: m.is_error, subtype: m.subtype, result: m.result, duration_ms: m.duration_ms, cost: m.total_cost_usd, usage: m.usage });
       proc.stdin.end(); // turn is over; let the process exit
     } else if (m.type === 'control_request' && m.request?.subtype === 'can_use_tool') {
       on.approval({ request_id: m.request_id, tool_name: m.request.tool_name, input: m.request.input });
