@@ -85,7 +85,7 @@ http.createServer(async (req, res) => {
     // Supervisor-only (not reachable via the gateway, which only forwards /api/*).
     if (url.pathname.startsWith('/internal/')) {
       if (req.headers['x-ctl-token'] !== CTL_TOKEN) return json(401, { error: 'bad token' });
-      if (url.pathname === '/internal/busy') return json(200, { running: turns.size });
+      if (url.pathname === '/internal/busy') return json(200, { running: turns.size, uptimeSeconds: Math.round(process.uptime()) });
       if (url.pathname === '/internal/restart-result' && req.method === 'POST') {
         const { sessions, text } = await readJson(req);
         for (const id of sessions) sendMessage(id, text, true);
