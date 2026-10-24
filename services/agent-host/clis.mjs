@@ -25,7 +25,9 @@ export async function cliStatus(name) {
   const v = await run(name, ['--version']);
   if (v.code !== 0) return { installed: false, loggedIn: false };
   const s = await run(name, c.status);
-  return { installed: true, version: v.out.split('\n')[0], loggedIn: s.code === 0, detail: s.out.split('\n')[0] };
+  let detail = s.out.split('\n')[0];
+  try { const j = JSON.parse(s.out); detail = [j.email, j.subscriptionType].filter(Boolean).join(' · '); } catch { /* codex prints plain text */ }
+  return { installed: true, version: v.out.split('\n')[0], loggedIn: s.code === 0, detail };
 }
 
 export async function cliInstall(name) {
