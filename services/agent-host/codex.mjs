@@ -6,7 +6,7 @@ import { spawn, spawnSync } from 'node:child_process';
  * @param {{id: string, cwd: string, started: boolean, extId?: string, text: string, model?: string, readOnly?: boolean, on: any}} o
  */
 export function startCodexTurn({ cwd, started, extId, text, model, readOnly, on }) {
-  const flags = ['--json', '--skip-git-repo-check', '-s', readOnly ? 'read-only' : 'workspace-write', ...(model ? ['-m', model] : [])];
+  const flags = ['--json', '--skip-git-repo-check', '-c', `sandbox_mode="${readOnly ? 'read-only' : 'workspace-write'}"`, ...(model ? ['-m', model] : [])];
   const args = started && extId ? ['exec', 'resume', ...flags, extId, '-'] : ['exec', ...flags, '-'];
   const proc = spawn('codex', args, { cwd, shell: process.platform === 'win32', windowsHide: true });
   let gotResult = false, stderr = '', buf = '';
