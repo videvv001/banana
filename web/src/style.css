@@ -1,0 +1,33 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; font-size: 14px; }
+body { margin: 0; background: #14161a; color: #e6e6e6; }
+button, textarea { font: inherit; color: inherit; background: #1d2026; border: 1px solid #333; border-radius: 6px; padding: 6px 12px; }
+button { cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 320px; overflow: auto; }
+.dim { color: #8a8f98; }
+.ok { color: #5fd38d; }
+.bad { color: #ff6b6b; }
+.pad { padding: 16px; }
+.app { display: flex; flex-direction: column; height: 100vh; }
+.body { flex: 1; display: flex; min-height: 0; }
+aside { width: 240px; border-right: 1px solid #2a2d33; padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+.item { padding: 6px 8px; border-radius: 6px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item:hover, .item.sel { background: #22262d; }
+main { flex: 1; min-width: 0; }
+.chat { display: flex; flex-direction: column; height: 100%; }
+.chat header { padding: 10px 16px; border-bottom: 1px solid #2a2d33; }
+.log { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.msg { white-space: pre-wrap; word-break: break-word; line-height: 1.5; max-width: 820px; }
+.msg.user { align-self: flex-end; background: #22304a; padding: 8px 12px; border-radius: 10px; }
+.msg.user.system { background: #2a2a22; color: #c9c9a0; font-size: 12px; }
+.tool, .think, .approval { max-width: 820px; border: 1px solid #2a2d33; border-radius: 8px; padding: 6px 10px; background: #181b20; }
+.tool.err { border-color: #7a3030; }
+.tool summary, .think summary { cursor: pointer; }
+.tool .out { border-top: 1px dashed #333; padding-top: 6px; }
+.approval { border-color: #8a6d1f; }
+.row { display: flex; gap: 8px; margin-top: 8px; }
+.meta { font-size: 11px; color: #6c717a; }
+.notice { font-size: 12px; color: #c9a227; white-space: pre-wrap; }
+.composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #2a2d33; }
+.composer textarea { flex: 1; resize: none; height: 56px; }
+.status { display: flex; gap: 16px; padding: 6px 12px; font-size: 12px; border-top: 1px solid #2a2d33; }

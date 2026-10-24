@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/web/**)",
+      "Edit(/services/**)",
+      "Edit(/CLAUDE.md)",
+      "Bash(node supervisor/ctl.mjs *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)"
+    ],
+    "deny": [
+      "Edit(/supervisor/**)",
+      "Edit(/data/**)",
+      "Edit(/.git/**)",
+      "Edit(/.claude/**)",
+      "Read(/data/**)",
+      "Bash(git reset*)",
+      "Bash(git checkout*)",
+      "Bash(git clean*)",
+      "Bash(git push*)",
+      "Bash(git tag*)",
+      "Bash(git branch -D*)",
+      "Bash(git stash*)"
+    ]
+  }
+}
