@@ -27,6 +27,8 @@ function StatusBar({ online }: { online: boolean }) {
 export function App() {
   const { sessions, events, partial, online, refresh, loadSession } = useEvents();
   const [current, setCurrent] = useState<string | null>(null);
+  const [provider, setProvider] = useState('claude');
+  const [model, setModel] = useState('');
 
   useEffect(() => { if (current) loadSession(current).catch(() => {}); }, [current, loadSession]);
   // After a reconnect the log may have gaps for the open session; re-pull it.
@@ -41,7 +43,7 @@ export function App() {
   const create = async () => {
     const cwd = window.prompt('Working folder (blank = this app itself)') ?? undefined;
     if (cwd === undefined) return;
-    const { id } = await api<{ id: string }>('/api/sessions', { cwd: cwd.trim() || undefined });
+    const { id } = await api<{ id: string }>('/api/sessions', { cwd: cwd.trim() || undefined, provider, model: model.trim() });
     await refresh();
     setCurrent(id);
   };
@@ -50,11 +52,16 @@ export function App() {
     <div className="app">
       <div className="body">
         <aside>
+          <select value={provider} onChange={(e) => { setProvider(e.target.value); setModel(''); }}>
+            <option value="claude">Claude</option><option value="codex">Codex</option>
+          </select>
+          <input list="models" value={model} onChange={(e) => setModel(e.target.value)} placeholder="model (default)" />
+          <datalist id="models">{(provider === 'claude' ? ['opus', 'sonnet', 'haiku'] : ['gpt-5-codex', 'gpt-5']).map((m) => <option key={m} value={m} />)}</datalist>
           <button onClick={create}>+ New chat</button>
           <button onClick={() => setCurrent('settings')}>⚙ Settings</button>
           {sessions.map((s) => (
             <div key={s.id} className={`item${s.id === current ? ' sel' : ''}`} onClick={() => setCurrent(s.id)}>
-              {s.status === 'running' && <span className="ok">● </span>}{s.title || 'New chat'}
+              {s.status === 'running' && <span className="ok">● </span>}{s.title || 'New chat'} <span className="dim">{s.provider}</span>
             </div>
           ))}
         </aside>

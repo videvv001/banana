@@ -14,14 +14,17 @@ export function openStore(file) {
       kind TEXT NOT NULL, data TEXT NOT NULL, ts INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS events_session ON events(session_id, seq);
   `);
-  const parse = (r) => ({ ...r, data: JSON.parse(r.data) });
+  for (const c of ["provider TEXT NOT NULL DEFAULT 'claude'", "model TEXT NOT NULL DEFAULT ''", "ext_id TEXT NOT NULL DEFAULT ''"]) {
+    try { db.exec(`ALTER TABLE sessions ADD COLUMN ${c}`); } catch { /* already migrated */ }
+  }
+  const parse =(r) => ({ ...r, data: JSON.parse(r.data) });
   const p = {
-    insertSession: db.prepare('INSERT INTO sessions(id, cwd, updated_at) VALUES(?, ?, ?)'),
+    insertSession: db.prepare('INSERT INTO sessions(id, cwd, provider, model, updated_at) VALUES(?, ?, ?, ?, ?)'),
     getSession: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     listSessions: db.prepare('SELECT * FROM sessions ORDER BY updated_at DESC'),
     touch: db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?'),
     setStatus: db.prepare('UPDATE sessions SET status = ? WHERE id = ?'),
-    setStarted: db.prepare('UPDATE sessions SET started = 1 WHERE id = ?'),
+    setStarted: db.prepare('UPDATE sessions SET started = 1, ext_id = ? WHERE id = ?'),
     setTitle: db.prepare('UPDATE sessions SET title = ? WHERE id = ?'),
     insertEvent: db.prepare('INSERT INTO events(session_id, kind, data, ts) VALUES(?, ?, ?, ?)'),
     after: db.prepare('SELECT * FROM events WHERE seq > ? ORDER BY seq'),
@@ -29,11 +32,11 @@ export function openStore(file) {
     maxSeq: db.prepare('SELECT COALESCE(MAX(seq), 0) AS m FROM events'),
   };
   return {
-    createSession: (id, cwd) => p.insertSession.run(id, cwd, Date.now()),
+    createSession: (id, cwd, provider = 'claude', model = '') => p.insertSession.run(id, cwd, provider, model, Date.now()),
     getSession: (id) => p.getSession.get(id),
     listSessions: () => p.listSessions.all(),
     setStatus: (id, s) => p.setStatus.run(s, id),
-    setStarted: (id) => p.setStarted.run(id),
+    setStarted: (id, extId = '') => p.setStarted.run(extId, id),
     setTitle: (id, t) => p.setTitle.run(t, id),
     append(sessionId, kind, data) {
       const ts = Date.now();

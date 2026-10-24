@@ -1,5 +1,5 @@
 export type Ev = { seq?: number; session_id: string; kind: string; data: any; ts?: number };
-export type Session = { id: string; title: string; cwd: string; status: string; updated_at: number };
+export type Session = { id: string; title: string; cwd: string; status: string; updated_at: number; provider: string; model: string };
 
 export async function api<T = any>(path: string, body?: unknown): Promise<T> {
   const r = await fetch(path, body === undefined ? undefined : { method: 'POST', body: JSON.stringify(body) });

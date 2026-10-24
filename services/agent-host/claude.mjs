@@ -12,8 +12,8 @@ const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
  *   approval(req: {request_id: string, tool_name: string, input: any}): void,
  *   exit(info: {gotResult: boolean, stderr: string}): void }}} o
  */
-export function startTurn({ id, cwd, started, text, images = [], on }) {
-  const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
+export function startTurn({ id, cwd, started, text, images = [], model, on }) {
+  const args = [...(model ? ['--model', model] : []),'-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio', ...(started ? ['--resume', id] : ['--session-id', id])];
   // Windows needs a shell to resolve claude.cmd; elsewhere spawn directly.
   // Sessions editing the app itself get its rules and permission fences (kept in supervisor/, which the AI can't edit).

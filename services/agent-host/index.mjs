@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { openStore } from './store.mjs';
 import { startTurn } from './claude.mjs';
+import { startCodexTurn } from './codex.mjs';
 import { cliStatus, cliInstall, cliLogin, isCli } from './clis.mjs';
 
 const PORT = +process.env.AGENT_PORT;
@@ -51,10 +52,12 @@ function sendMessage(id, text, system = false, images = []) {
   emit(id, 'user', system ? { text, system: true } : images.length ? { text, images } : { text });
   setStatus(id, 'running');
   const owned = new Set();
-  const turn = startTurn({
-    id, cwd: s.cwd, started: !!s.started, text, images,
+  const codex = s.provider === 'codex';
+  const turn = (codex ? startCodexTurn : startTurn)({
+    id, cwd: s.cwd, started: !!s.started, extId: s.ext_id, text, images, model: s.model || undefined,
+    readOnly: s.cwd === APP_ROOT, // ponytail: codex isn't fenced by ai-settings.json, so it can't write to the app itself
     on: {
-      init: () => store.setStarted(id),
+      init: (extId) => { if (!s.started) store.setStarted(id, extId); },
       message: (kind, data) => emit(id, kind, data),
       delta: (t) => ephemeral(id, 'delta', { text: t }),
       approval: (req) => { owned.add(req.request_id); approvalOwner.set(req.request_id, { sessionId: id, input: req.input }); emit(id, 'approval', req); },
@@ -111,9 +114,10 @@ http.createServer(async (req, res) => {
     }
     if (is('GET', /^\/api\/sessions$/)) return json(200, { sessions: store.listSessions(), maxSeq: store.maxSeq() });
     if (is('POST', /^\/api\/sessions$/)) {
-      const { cwd } = await readJson(req);
+      const { cwd, provider = 'claude', model = '' } = await readJson(req);
+      if (!['claude', 'codex'].includes(provider) || typeof model !== 'string' || !/^[\w.:\-\[\]]*$/.test(model)) return json(400, { error: 'bad provider/model' });
       const id = crypto.randomUUID();
-      store.createSession(id, cwd || APP_ROOT);
+      store.createSession(id, cwd || APP_ROOT, provider, model);
       return json(200, { id });
     }
     if (is('GET', /^\/api\/sessions\/([\w-]+)\/events$/)) return json(200, { events: store.sessionEvents(req.m[1]) });

@@ -67,7 +67,7 @@ export function Chat({ session, events, partial }: { session: Session; events: E
 
   return (
     <div className="chat">
-      <header><b>{session.title || 'New chat'}</b> <span className="dim">{session.cwd}</span></header>
+      <header><b>{session.title || 'New chat'}</b> <span className="dim">{session.provider} · {session.model || 'default model'} · {session.cwd}</span></header>
       <div className="log" ref={scroller} onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120; }}>
         {events.map((e) => {
           if (e.kind === 'user') return <div key={e.seq} className={`msg user${e.data.system ? ' system' : ''}`}>{e.data.system && <b>system · </b>}{(e.data.images ?? []).map((im: any, i: number) => <img key={i} className="thumb" src={`data:${im.media_type};base64,${im.data}`} />)}{e.data.text}</div>;
@@ -80,7 +80,7 @@ export function Chat({ session, events, partial }: { session: Session; events: E
             </div>
           );
           if (e.kind === 'approval') return <Approval key={e.seq} ev={e} done={approvalDone.get(e.data.request_id)} />;
-          if (e.kind === 'result') return <div key={e.seq} className={`meta${e.data.is_error ? ' bad' : ''}`}>{e.data.is_error ? 'error · ' : ''}{(e.data.duration_ms / 1000).toFixed(1)}s · ${e.data.cost?.toFixed(3)}</div>;
+          if (e.kind === 'result') return <div key={e.seq} className={`meta${e.data.is_error ? ' bad' : ''}`}>{e.data.is_error ? 'error · ' : ''}{(e.data.duration_ms / 1000).toFixed(1)}s{e.data.cost != null && ` · $${e.data.cost.toFixed(3)}`}</div>;
           if (e.kind === 'notice') return <div key={e.seq} className={`notice${e.data.error ? ' bad' : ''}`}>{e.data.text}</div>;
           return null;
         })}
