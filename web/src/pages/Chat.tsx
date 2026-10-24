@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, qs, type Ev, type Session } from '../api';
 import { useApp } from '../ctx';
 import { blocks, changedFiles, langOf, sessionToMarkdown, shell } from '../lib';
-import { Agent, CodeBlock, Drawer, Icon, IconBtn, Markdown, base, cleanTitle, copy, download, fmtDur, useFetch } from '../ui';
+import { Agent, CodeBlock, Drawer, Icon, IconBtn, Markdown, base, cleanTitle, confirmDlg, copy, download, fmtDur, toast, useFetch } from '../ui';
 
 const short = (v: unknown, n = 110) => { const s = typeof v === 'string' ? v : JSON.stringify(v); return s.length > n ? s.slice(0, n) + '…' : s; };
 
@@ -72,6 +72,7 @@ export function Chat({ session }: { session: Session }) {
   const [term, setTerm] = useState(false);
   const [pick, setPick] = useState(false);
   const [pq, setPq] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const ta = useRef<HTMLTextAreaElement>(null);
@@ -121,6 +122,19 @@ export function Chat({ session }: { session: Session }) {
   const { data: models } = useFetch<Record<string, string[]>>(fresh ? '/api/models' : null);
   const { data: pickRes } = useFetch<{ files: string[] }>(pick ? `/api/files?${qs({ cwd: session.cwd, q: pq })}` : null);
   const showFile = (f: string) => { setOpenFile(f); setFiles(true); };
+  const deleteChat = async () => {
+    if (running || deleting) return;
+    setDeleting(true);
+    try {
+      if (!(await confirmDlg(`Delete "${cleanTitle(session.title)}" and its history? This cannot be undone.`))) return;
+      await api(`/api/sessions/${session.id}/delete`, {});
+      try { localStorage.removeItem(draftKey); } catch { /* storage may be unavailable */ }
+      go('sessions');
+      await refresh();
+      toast('Chat deleted');
+    } catch { /* toast shown by api() */ }
+    finally { setDeleting(false); }
+  };
 
   // Per-turn "modified files" summary is attached to that turn's result event.
   const turnStart = (i: number) => { let j = i; while (j > 0 && evs[j - 1].kind !== 'user') j--; return j; };
@@ -134,6 +148,7 @@ export function Chat({ session }: { session: Session }) {
         <IconBtn icon="terminal" label="Command output" on={term} onClick={() => setTerm((v) => !v)} />
         <IconBtn icon="git" label="Review changes (Alt+R)" onClick={() => go('git?' + qs({ cwd: session.cwd }))} />
         <IconBtn icon="download" label="Export as Markdown" onClick={() => download(`${(session.title || 'chat').replace(/[^\w-]+/g, '_').slice(0, 40)}.md`, sessionToMarkdown(session, evs))} />
+        <IconBtn icon="trash" label={running ? 'Stop the agent before deleting this chat' : 'Delete chat'} disabled={running || deleting} onClick={deleteChat} />
       </div>
       <div className="log" ref={scroller} onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120; }}>
         <div className="thread">
