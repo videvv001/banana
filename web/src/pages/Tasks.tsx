@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api, type Ev } from '../api';
 import { useApp } from '../ctx';
 import { blocks, shell } from '../lib';
-import { Agent, Dot, Empty, Icon, Seg, Skeleton, ago, base, fmtDur, useFetch } from '../ui';
+import { Agent, Dot, Empty, Icon, Seg, Skeleton, ago, base, cleanTitle, fmtDur, useFetch } from '../ui';
 
 type Task = { session: string; title: string; provider: string; cwd: string; prompt: string; start: number; end?: number; status: 'running' | 'done' | 'failed'; durationMs?: number; cost?: number | null; tokens?: number | null; detail: string; system: boolean };
 
@@ -44,7 +44,7 @@ export function Tasks() {
                   <Dot s={t.status} />
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div className="ell">{t.system ? '(system) ' : ''}{t.prompt || '(empty)'}</div>
-                    <div className="muted xs ell">{t.title || 'New chat'} · {base(t.cwd)} · {ago(t.start)} · {fmtDur(t.durationMs ?? (t.status === 'running' ? Date.now() - t.start : undefined))}</div>
+                    <div className="muted xs ell">{cleanTitle(t.title)} · {base(t.cwd)} · {ago(t.start)} · {fmtDur(t.durationMs ?? (t.status === 'running' ? Date.now() - t.start : undefined))}</div>
                   </div>
                   <Agent p={t.provider} />
                   <span className={`badge ${t.status === 'done' ? 'ok' : t.status === 'failed' ? 'bad' : ''}`}>{t.status}</span>

@@ -112,6 +112,8 @@ export const ago = (ts: number) => {
   const s = Math.max(0, (Date.now() - ts) / 1000);
   return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
 };
+// Titles are the first message text; strip markdown noise for display.
+export const cleanTitle = (t: string) => (t || '').replace(/^[#*>\s|_-]+/, '').replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim() || 'New chat';
 export const base = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 export const copy = (t: string) => navigator.clipboard.writeText(t).then(() => toast('Copied'), () => toast('Copy failed', 'error'));
 export const download = (name: string, text: string, type = 'text/markdown') => {
@@ -122,17 +124,21 @@ export const download = (name: string, text: string, type = 'text/markdown') => 
 
 // Fetch a GET endpoint; optional polling. `url === null` skips.
 export function useFetch<T>(url: string | null, pollMs = 0) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(!!url);
-  const [error, setError] = useState('');
+  // Results are tagged with the url they belong to, so a url change never shows the previous url's data (or an empty flash).
+  const [res, setRes] = useState<{ url: string | null; data: T | null; error: string }>({ url: null, data: null, error: '' });
   const load = useCallback(async () => {
     if (!url) return;
-    try { const r = await fetch(url); if (r.status === 401) { location.href = '/login'; return; } if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? String(r.status)); setData(await r.json()); setError(''); }
-    catch (e) { setError(String((e as Error).message)); }
-    setLoading(false);
+    try {
+      const r = await fetch(url);
+      if (r.status === 401) { location.href = '/login'; return; }
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? String(r.status));
+      const data = await r.json();
+      setRes({ url, data, error: '' });
+    } catch (e) { setRes((p) => ({ url, data: p.url === url ? p.data : null, error: String((e as Error).message) })); }
   }, [url]);
-  useEffect(() => { setLoading(!!url); load(); if (!pollMs) return; const id = setInterval(load, pollMs); return () => clearInterval(id); }, [load, pollMs, url]);
-  return { data, loading, error, reload: load };
+  useEffect(() => { load(); if (!pollMs) return; const id = setInterval(load, pollMs); return () => clearInterval(id); }, [load, pollMs]);
+  const cur = res.url === url;
+  return { data: cur ? res.data : null, loading: !!url && !cur, error: cur ? res.error : '', reload: load };
 }
 
 // ---- code highlighting (tiny tokenizer; good enough for display, not parsing) ----

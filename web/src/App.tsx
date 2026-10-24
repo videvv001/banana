@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, qs, type ServerSettings } from './api';
 import { AppCtx, SHORTCUTS, go, parseRoute, useApp, type Ctx } from './ctx';
 import { usePrefs, setPrefs } from './prefs';
-import { Agent, Hosts, Icon, IconBtn, Modal, Seg, base, toast, useFetch } from './ui';
+import { Hosts, Icon, IconBtn, Modal, Seg, cleanTitle, toast, useFetch } from './ui';
 import { useEvents } from './useEvents';
 import { Dashboard } from './pages/Dashboard';
 import { Chat } from './pages/Chat';
@@ -73,7 +73,7 @@ export function App() {
   const ctx: Ctx = { ...ev, route, go, newChat, settings, saveSettings };
 
   const toggleNav = () => (mobile() ? setDrawer((d) => !d) : setPrefs({ compactNav: !prefs.compactNav }));
-  const title = route.page === 'chat' ? (current?.title || 'New chat') : TITLES[route.page] ?? 'Not found';
+  const title = route.page === 'chat' ? cleanTitle(current?.title ?? '') : TITLES[route.page] ?? 'Not found';
 
   let page;
   switch (route.page) {
@@ -107,8 +107,8 @@ export function App() {
           {MORE.map(link)}
           <h4>Recent</h4>
           {recent.map((s) => (
-            <a key={s.id} href={`#/chat/${s.id}`} className={`recent${route.page === 'chat' && route.arg === s.id ? ' sel' : ''}`} title={s.title || 'New chat'}>
-              {s.status === 'running' ? <span className="dot run" /> : s.pinned ? <Icon n="pin" /> : null}<span className="ell">{s.title || 'New chat'}</span>
+            <a key={s.id} href={`#/chat/${s.id}`} className={`recent${route.page === 'chat' && route.arg === s.id ? ' sel' : ''}`} title={cleanTitle(s.title)}>
+              {s.status === 'running' ? <span className="dot run" /> : s.pinned ? <Icon n="pin" /> : null}<span className="ell">{cleanTitle(s.title)}</span>
             </a>
           ))}
           {!recent.length && <span className="muted small recent">No chats yet</span>}
@@ -119,9 +119,7 @@ export function App() {
         <div className="main">
           <div className="topbar">
             <IconBtn icon="sidebar" label="Toggle sidebar" onClick={toggleNav} />
-            <span className="title ell">{title}</span>
-            {current && <Agent p={current.provider} />}
-            {current && <span className="muted small ell hide-sm">{base(current.cwd)}</span>}
+            {route.page !== 'chat' && <span className="title ell">{title}</span>}
             <span className="grow" />
             <span className={`small ${ev.online ? 'ok' : 'bad'}`} role="status"><span className={`dot ${ev.online ? 'ok' : 'bad'}`} /> {ev.online ? 'live' : 'offline'}</span>
           </div>

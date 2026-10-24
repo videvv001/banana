@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type Ev, type Session } from '../api';
 import { useApp } from '../ctx';
 import { sessionToMarkdown } from '../lib';
-import { Agent, Dot, Empty, IconBtn, Modal, Seg, ago, base, confirmDlg, copy, download, toast } from '../ui';
+import { Agent, Dot, Empty, IconBtn, Modal, Seg, ago, cleanTitle, base, confirmDlg, copy, download, toast } from '../ui';
 
 export function Sessions() {
   const { sessions, refresh, route } = useApp();
@@ -33,7 +33,7 @@ export function Sessions() {
 
   const update = (s: Session, patch: object) => api(`/api/sessions/${s.id}/update`, patch).then(refresh);
   const del = async (s: Session) => {
-    if (!(await confirmDlg(`Delete "${s.title || 'New chat'}" and its history? This cannot be undone.`))) return;
+    if (!(await confirmDlg(`Delete "${cleanTitle(s.title)}" and its history? This cannot be undone.`))) return;
     await api(`/api/sessions/${s.id}/delete`, {}); await refresh(); toast('Session deleted');
   };
   const exportMd = async (s: Session) => {
@@ -60,7 +60,7 @@ export function Sessions() {
             <div key={s.id} className="hov">
               <Dot s={s.status} />
               <a href={`#/chat/${s.id}`} className="grow" style={{ minWidth: 0, padding: 0, border: 0 }}>
-                <div className="ell">{s.pinned ? '📌 ' : ''}{s.title || 'New chat'}{s.cmp && <span className="badge" style={{ marginLeft: 8 }}>compare</span>}</div>
+                <div className="ell">{s.pinned ? '📌 ' : ''}{cleanTitle(s.title)}{s.cmp && <span className="badge" style={{ marginLeft: 8 }}>compare</span>}</div>
                 <div className="muted xs ell">{base(s.cwd)} · {s.model || 'default model'} · {ago(s.updated_at)}</div>
               </a>
               <Agent p={s.provider} />

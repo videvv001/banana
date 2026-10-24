@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Cli } from '../api';
 import { useApp } from '../ctx';
-import { Agent, Dot, Empty, Icon, Skeleton, ago, useFetch } from '../ui';
+import { Agent, Dot, Empty, Icon, Skeleton, ago, cleanTitle, useFetch } from '../ui';
 
 type Svc = { pid: number | null; healthy: boolean; restarts: number };
 type Task = { session: string; title: string; provider: string; status: string; start: number; durationMs?: number; prompt: string };
@@ -55,7 +55,7 @@ export function Dashboard() {
         <section className="col">
           <h2>Recent sessions</h2>
           {!recent.length ? <div className="card"><Empty title="No sessions yet" icon="chat">Start a chat to see it here.</Empty></div> : (
-            <div className="list">{recent.map((s) => <a key={s.id} href={`#/chat/${s.id}`}><Dot s={s.status} /><span className="grow ell">{s.title || 'New chat'}</span><Agent p={s.provider} /><span className="muted xs">{ago(s.updated_at)}</span></a>)}</div>
+            <div className="list">{recent.map((s) => <a key={s.id} href={`#/chat/${s.id}`}><Dot s={s.status} /><span className="grow ell">{cleanTitle(s.title)}</span><Agent p={s.provider} /><span className="muted xs">{ago(s.updated_at)}</span></a>)}</div>
           )}
         </section>
         <section className="col">

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, qs, type Ev, type Session } from '../api';
 import { useApp } from '../ctx';
-import { blocks, changedFiles, langOf, sessionToMarkdown, shell, textOf } from '../lib';
-import { Agent, CodeBlock, Drawer, Icon, IconBtn, Markdown, base, copy, download, fmtDur, useFetch } from '../ui';
+import { blocks, changedFiles, langOf, sessionToMarkdown, shell } from '../lib';
+import { Agent, CodeBlock, Drawer, Icon, IconBtn, Markdown, base, cleanTitle, copy, download, fmtDur, useFetch } from '../ui';
 
 const short = (v: unknown, n = 110) => { const s = typeof v === 'string' ? v : JSON.stringify(v); return s.length > n ? s.slice(0, n) + '…' : s; };
 
@@ -10,7 +10,7 @@ function ToolCard({ block, result }: { block: any; result?: any }) {
   const out = result && (typeof result.content === 'string' ? result.content : JSON.stringify(result.content, null, 2));
   return (
     <details className={`tool${result?.is_error ? ' err' : ''}`}>
-      <summary><Icon n="terminal" /> {block.name} <span className="muted">{shell(block) || short(block.input)}</span>{!result && ' …'}</summary>
+      <summary><Icon n="terminal" /> {block.name} <span className="muted">{shell(block) || block.input?.file_path || block.input?.pattern || short(block.input)}</span>{!result && ' …'}</summary>
       <pre>{JSON.stringify(block.input, null, 2)}</pre>
       {out && <pre>{out}</pre>}
     </details>
@@ -117,7 +117,7 @@ export function Chat({ session }: { session: Session }) {
   return (
     <div className="chat">
       <div className="chat-head">
-        <span className="grow ell"><b>{session.title || 'New chat'}</b> <span className="muted small">· {base(session.cwd)}</span></span>
+        <span className="grow ell"><b>{cleanTitle(session.title)}</b> <span className="muted small">· {base(session.cwd)}</span></span>
         <Agent p={session.provider} />{session.model && <span className="muted small">{session.model}</span>}
         <IconBtn icon="file" label="Files" onClick={() => { setOpenFile(null); setFiles(true); }} />
         <IconBtn icon="terminal" label="Command output" on={term} onClick={() => setTerm((v) => !v)} />

@@ -37,8 +37,10 @@ export function GitPage() {
     const code = isStaged ? f.x : f.y, untracked = f.x === '?';
     const active = sel?.path === f.path && sel.staged === isStaged;
     return (
-      <div key={f.path + isStaged} className="hov" style={active ? { background: 'var(--accent-soft)' } : undefined}>
-        <button className="btn ghost sm grow ell" style={{ justifyContent: 'flex-start', fontFamily: 'var(--mono)', fontSize: '.8rem' }} onClick={() => setSel({ path: f.path, staged: isStaged, untracked })} title={f.path}>{f.path}</button>
+      <div key={f.path + isStaged} className="hov" style={{ flexWrap: 'wrap', gap: 6, ...(active ? { background: 'var(--accent-soft)' } : {}) }}>
+        <button className="btn ghost sm grow ell" style={{ display: 'block', textAlign: 'left', flex: '1 1 100%', minWidth: 0, fontFamily: 'var(--mono)', fontSize: '.8rem' }} onClick={() => setSel({ path: f.path, staged: isStaged, untracked })} title={f.path}>
+          <b>{base(f.path)}</b> <span className="muted">{f.path.slice(0, f.path.length - base(f.path).length)}</span>
+        </button>
         <span className="badge" title={LABEL[code] ?? code}>{(LABEL[code] ?? code).slice(0, 3)}</span>
         {isStaged
           ? <button className="btn sm" disabled={busy} onClick={() => act('unstage', { files: [f.path] })}>Unstage</button>
@@ -78,7 +80,7 @@ export function GitPage() {
               </div>
               <div className="col" style={{ minWidth: 0 }}>
                 <div className="row"><h3 className="grow ell">{sel ? sel.path : 'Diff'}</h3><Seg label="Diff layout" value={prefs.diffSplit ? 'split' : 'unified'} options={[['unified', 'Unified'], ['split', 'Side by side']]} onChange={(v) => setPrefs({ diffSplit: v === 'split' })} /></div>
-                {!sel ? <div className="card muted small">Select a file to see its diff.</div> : dl ? <Skeleton rows={6} /> : <DiffView diff={diff?.diff ?? ''} split={prefs.diffSplit} />}
+                {!sel ? <div className="card muted small">Select a file to see its diff.</div> : dl || !diff ? <Skeleton rows={6} /> : <DiffView diff={diff?.diff ?? ''} split={prefs.diffSplit} />}
               </div>
             </div>
           )}
