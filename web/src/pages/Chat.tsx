@@ -58,7 +58,14 @@ function FilesDrawer({ session, modified, open, onClose, initial }: { session: S
 
 export function Chat({ session }: { session: Session }) {
   const { events, partial, loadSession, refresh, online, go } = useApp();
-  const [text, setText] = useState('');
+  const draftKey = `chat-draft:${session.id}`;
+  const [text, setText] = useState(() => {
+    try { return localStorage.getItem(draftKey) ?? ''; } catch { return ''; }
+  });
+  const setDraft = (value: string) => {
+    setText(value);
+    try { if (value) localStorage.setItem(draftKey, value); else localStorage.removeItem(draftKey); } catch { /* storage may be unavailable */ }
+  };
   const [images, setImages] = useState<{ media_type: string; data: string }[]>([]);
   const [files, setFiles] = useState(false);
   const [openFile, setOpenFile] = useState<string | null>(null);
@@ -95,7 +102,11 @@ export function Chat({ session }: { session: Session }) {
   const send = (msg = text, imgs = images) => {
     if ((!msg.trim() && !imgs.length) || running) return;
     stick.current = true;
-    api(`/api/sessions/${session.id}/messages`, { text: msg, images: imgs }).then(() => { setText(''); setImages([]); }).catch(() => {});
+    api(`/api/sessions/${session.id}/messages`, { text: msg, images: imgs }).then(() => {
+      setText((current) => current === msg ? '' : current);
+      try { if (localStorage.getItem(draftKey) === msg) localStorage.removeItem(draftKey); } catch { /* storage may be unavailable */ }
+      setImages([]);
+    }).catch(() => {});
   };
   const addImages = (list: File[]) => {
     for (const f of list) {
@@ -186,7 +197,7 @@ export function Chat({ session }: { session: Session }) {
             <div className="previews">{images.map((im, i) => <span key={i} className="preview"><img alt="to send" className="thumb" src={`data:${im.media_type};base64,${im.data}`} /><button aria-label="Remove image" onClick={() => setImages((a) => a.filter((_, j) => j !== i))}>×</button></span>)}</div>
           )}
           <textarea ref={ta} rows={1} aria-label="Message" value={text} placeholder={running ? `${session.provider === 'codex' ? 'Codex' : 'Claude'} is working…` : 'Message (Enter to send, Shift+Enter for newline, paste images)'}
-            onChange={(e) => setText(e.target.value)} onPaste={onPaste}
+            onChange={(e) => setDraft(e.target.value)} onPaste={onPaste}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} />
           <div className="bar" style={{ position: 'relative' }}>
             <label className="ibtn" title="Attach image" style={{ cursor: 'pointer' }}><Icon n="clip" /><span className="sr">Attach image</span>
@@ -196,7 +207,7 @@ export function Chat({ session }: { session: Session }) {
             {pick && (
               <div className="popover">
                 <input aria-label="Search files" autoFocus placeholder="Find a file to reference…" value={pq} onChange={(e) => setPq(e.target.value)} style={{ width: '100%', marginBottom: 6 }} />
-                {(pickRes?.files ?? []).map((f) => <button key={f} onClick={() => { setText((t) => `${t}${t && !/\s$/.test(t) ? ' ' : ''}@${f} `); setPick(false); setPq(''); ta.current?.focus(); }}>{f}</button>)}
+                {(pickRes?.files ?? []).map((f) => <button key={f} onClick={() => { setDraft(`${text}${text && !/\s$/.test(text) ? ' ' : ''}@${f} `); setPick(false); setPq(''); ta.current?.focus(); }}>{f}</button>)}
               </div>
             )}
             {fresh && models ? (
