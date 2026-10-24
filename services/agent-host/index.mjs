@@ -50,7 +50,11 @@ function withInstructions(s, text) {
   if (s.started) return text;
   const proj = store.kvGet('projects', {});
   const key = Object.keys(proj).find((k) => path.resolve(k) === path.resolve(s.cwd));
-  const parts = [api2.settings().instructions?.[s.provider], proj[key]?.instructions].filter((x) => x?.trim());
+  // Claude gets the app rules via --append-system-prompt-file; Codex has no such flag, so they ride along here.
+  // ponytail: Codex isn't fenced by ai-settings.json, so these rules are advice, not enforcement (the pre-turn git checkpoint is the safety net).
+  let rules = '';
+  if (s.provider === 'codex' && path.resolve(s.cwd) === APP_ROOT) { try { rules = fs.readFileSync(path.join(APP_ROOT, 'supervisor', 'ai-rules.md'), 'utf8'); } catch { /* no rules file */ } }
+  const parts = [rules, api2.settings().instructions?.[s.provider], proj[key]?.instructions].filter((x) => x?.trim());
   return parts.length ? 'Instructions for this conversation:\n' + parts.join('\n\n') + '\n\n---\n' + text : text;
 }
 const bin = (provider) => api2.settings().cliPaths?.[provider]?.trim() || provider;
@@ -67,7 +71,6 @@ function sendMessage(id, text, system = false, images = []) {
   const codex = s.provider === 'codex';
   const turn = (codex ? startCodexTurn : startTurn)({
     id, cwd: s.cwd, started: !!s.started, extId: s.ext_id, text: system ? text : withInstructions(s, text), images, model: s.model || undefined, bin: bin(s.provider),
-    readOnly: s.cwd === APP_ROOT, // ponytail: codex isn't fenced by ai-settings.json, so it can't write to the app itself
     on: {
       init: (extId) => { if (!s.started) store.setStarted(id, extId); },
       message: (kind, data) => emit(id, kind, data),
