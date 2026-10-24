@@ -30,6 +30,7 @@ function Approval({ ev, done }: { ev: Ev; done?: { allow: boolean; expired?: boo
 
 export function Chat({ session, events, partial }: { session: Session; events: Ev[]; partial: string }) {
   const [text, setText] = useState('');
+  const [images, setImages] = useState<{ media_type: string; data: string }[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const running = session.status === 'running';
@@ -49,9 +50,19 @@ export function Chat({ session, events, partial }: { session: Session; events: E
   }, [events, partial]);
 
   const send = () => {
-    if (!text.trim() || running) return;
+    if ((!text.trim() && !images.length) || running) return;
     stick.current = true;
-    api(`/api/sessions/${session.id}/messages`, { text }).then(() => setText('')).catch(() => {});
+    api(`/api/sessions/${session.id}/messages`, { text, images }).then(() => { setText(''); setImages([]); }).catch(() => {});
+  };
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    for (const f of Array.from(e.clipboardData.files)) {
+      if (!/^image\/(png|jpeg|gif|webp)$/.test(f.type)) continue;
+      e.preventDefault();
+      const r = new FileReader();
+      r.onload = () => setImages((a) => [...a, { media_type: f.type, data: String(r.result).split(',')[1] }]);
+      r.readAsDataURL(f);
+    }
   };
 
   return (
@@ -59,7 +70,7 @@ export function Chat({ session, events, partial }: { session: Session; events: E
       <header><b>{session.title || 'New chat'}</b> <span className="dim">{session.cwd}</span></header>
       <div className="log" ref={scroller} onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120; }}>
         {events.map((e) => {
-          if (e.kind === 'user') return <div key={e.seq} className={`msg user${e.data.system ? ' system' : ''}`}>{e.data.system && <b>system · </b>}{e.data.text}</div>;
+          if (e.kind === 'user') return <div key={e.seq} className={`msg user${e.data.system ? ' system' : ''}`}>{e.data.system && <b>system · </b>}{(e.data.images ?? []).map((im: any, i: number) => <img key={i} className="thumb" src={`data:${im.media_type};base64,${im.data}`} />)}{e.data.text}</div>;
           if (e.kind === 'assistant') return (
             <div key={e.seq}>
               {(e.data.content ?? []).map((b: any, i: number) =>
@@ -75,9 +86,19 @@ export function Chat({ session, events, partial }: { session: Session; events: E
         })}
         {partial && <div className="msg bot">{partial}<span className="dim">▍</span></div>}
       </div>
+      {images.length > 0 && (
+        <div className="previews">
+          {images.map((im, i) => (
+            <span key={i} className="preview">
+              <img className="thumb" src={`data:${im.media_type};base64,${im.data}`} />
+              <button onClick={() => setImages((a) => a.filter((_, j) => j !== i))}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="composer">
-        <textarea value={text} placeholder={running ? 'Claude is working…' : 'Message Claude (Enter to send, Shift+Enter for newline)'}
-          onChange={(e) => setText(e.target.value)}
+        <textarea value={text} placeholder={running ? 'Claude is working…' : 'Message Claude (Enter to send, Shift+Enter for newline; paste images)'}
+          onChange={(e) => setText(e.target.value)} onPaste={onPaste}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
         {running ? <button onClick={() => api(`/api/sessions/${session.id}/interrupt`, {})}>Stop</button> : <button onClick={send}>Go</button>}
       </div>

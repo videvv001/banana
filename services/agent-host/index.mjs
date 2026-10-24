@@ -41,17 +41,17 @@ function checkpoint(cwd) {
   } catch { /* no git / nothing to commit: not worth failing the turn */ }
 }
 
-function sendMessage(id, text, system = false) {
+function sendMessage(id, text, system = false, images = []) {
   const s = store.getSession(id);
   if (!s) return 404;
   if (turns.has(id)) return 409;
-  if (!s.title && !system) store.setTitle(id, text.slice(0, 60));
+  if (!s.title && !system) store.setTitle(id, text.slice(0, 60) || 'Image');
   checkpoint(s.cwd);
-  emit(id, 'user', system ? { text, system: true } : { text });
+  emit(id, 'user', system ? { text, system: true } : images.length ? { text, images } : { text });
   setStatus(id, 'running');
   const owned = new Set();
   const turn = startTurn({
-    id, cwd: s.cwd, started: !!s.started, text,
+    id, cwd: s.cwd, started: !!s.started, text, images,
     on: {
       init: () => store.setStarted(id),
       message: (kind, data) => emit(id, kind, data),
@@ -71,7 +71,7 @@ function sendMessage(id, text, system = false) {
 
 const readJson = (req) => new Promise((resolve, reject) => {
   let body = '';
-  req.on('data', (d) => { body += d; if (body.length > 1e6) { reject(new Error('too large')); req.destroy(); } });
+  req.on('data', (d) => { body += d; if (body.length > 30e6) { reject(new Error('too large')); req.destroy(); } });
   req.on('end', () => { try { resolve(body ? JSON.parse(body) : {}); } catch (e) { reject(e); } });
 });
 
@@ -109,9 +109,10 @@ http.createServer(async (req, res) => {
     }
     if (is('GET', /^\/api\/sessions\/([\w-]+)\/events$/)) return json(200, { events: store.sessionEvents(req.m[1]) });
     if (is('POST', /^\/api\/sessions\/([\w-]+)\/messages$/)) {
-      const { text } = await readJson(req);
-      if (typeof text !== 'string' || !text.trim()) return json(400, { error: 'text required' });
-      const code = sendMessage(req.m[1], text);
+      const { text, images = [] } = await readJson(req);
+      const okImg = Array.isArray(images) && images.every((i) => /^image\/(png|jpeg|gif|webp)$/.test(i?.media_type) && typeof i.data === 'string');
+      if (typeof text !== 'string' || !okImg || (!text.trim() && !images.length)) return json(400, { error: 'text or image required' });
+      const code = sendMessage(req.m[1], text, false, images);
       return json(code, { ok: code === 202 });
     }
     if (is('POST', /^\/api\/sessions\/([\w-]+)\/interrupt$/)) {

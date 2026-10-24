@@ -12,7 +12,7 @@ const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
  *   approval(req: {request_id: string, tool_name: string, input: any}): void,
  *   exit(info: {gotResult: boolean, stderr: string}): void }}} o
  */
-export function startTurn({ id, cwd, started, text, on }) {
+export function startTurn({ id, cwd, started, text, images = [], on }) {
   const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
     '--include-partial-messages', '--permission-prompt-tool', 'stdio', ...(started ? ['--resume', id] : ['--session-id', id])];
   // Windows needs a shell to resolve claude.cmd; elsewhere spawn directly.
@@ -55,7 +55,10 @@ export function startTurn({ id, cwd, started, text, on }) {
   proc.stderr.on('data', (d) => { stderr = (stderr + d).slice(-4000); });
   proc.on('exit', () => on.exit({ gotResult, stderr }));
   proc.stdin.on('error', () => {}); // EPIPE if the CLI already died
-  proc.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n');
+  const content = images.length
+    ? [...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.media_type, data: i.data } })), ...(text ? [{ type: 'text', text }] : [])]
+    : text;
+  proc.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n');
 
   return {
     respond(requestId, allow, input) {
