@@ -4,7 +4,7 @@ import { setPrefs, usePrefs } from '../prefs';
 import { Icon, Seg, Skeleton, useFetch } from '../ui';
 
 type Diag = { node: string; platform: string; uptimeSeconds: number; sessions: number; events: number; dbBytes: number; dataDir: string; appRoot: string; commit: string };
-const ACCENTS: [string, string][] = [['default', '#6658ED'], ['blue', '#2f6fe4'], ['green', '#1f9d63'], ['rose', '#d6336c'], ['orange', '#e0701a']];
+const ACCENTS: [string, string][] = [['default', '#d9ad58'], ['blue', '#2f6fe4'], ['green', '#1f9d63'], ['rose', '#d6336c'], ['orange', '#e0701a']];
 const mb = (n: number) => (n / 1048576).toFixed(1) + ' MB';
 
 export function Settings() {
@@ -39,7 +39,7 @@ export function Settings() {
           <div className="col"><b>Theme</b><Seg label="Theme" value={prefs.theme} onChange={(theme) => setPrefs({ theme })} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} /></div>
           <div className="col"><b>Accent color</b>
             <div className="row">{ACCENTS.map(([k, c]) => <button key={k} className="ibtn" aria-label={`Accent ${k}`} aria-pressed={prefs.accent === k} title={k} onClick={() => setPrefs({ accent: k })} style={{ background: c, border: prefs.accent === k ? '3px solid var(--text)' : '3px solid transparent', borderRadius: '50%' }} />)}</div>
-            <span className="muted xs">Dark mode uses a lighter shade of the same hue.</span>
+            <span className="muted xs">Gold is the default accent. Dark mode uses lighter accent shades.</span>
           </div>
           <label className="f">Font size: {prefs.fontSize}px<input type="range" min={13} max={18} value={prefs.fontSize} onChange={(e) => setPrefs({ fontSize: +e.target.value })} /></label>
           <label className="row"><input type="checkbox" checked={prefs.compactNav} onChange={(e) => setPrefs({ compactNav: e.target.checked })} /> Compact sidebar (icons only)</label>

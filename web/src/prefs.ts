@@ -2,14 +2,22 @@ import { useSyncExternalStore } from 'react';
 
 // Browser-local appearance preferences. Server-side config (agents, instructions) lives in /api/settings.
 export type Prefs = { theme: 'system' | 'light' | 'dark'; accent: string; fontSize: number; compactNav: boolean; wrapCode: boolean; lineNumbers: boolean; diffSplit: boolean };
-const DEFAULTS: Prefs = { theme: 'system', accent: 'default', fontSize: 15, compactNav: false, wrapCode: false, lineNumbers: false, diffSplit: false };
+const DEFAULTS: Prefs = { theme: 'dark', accent: 'default', fontSize: 15, compactNav: false, wrapCode: false, lineNumbers: false, diffSplit: false };
+const APPEARANCE_VERSION = 'obsidian-gold-v1';
 
 const load = (): Prefs => {
   try {
     const raw = JSON.parse(localStorage.getItem('prefs') ?? '{}');
     // earlier builds stored just the theme
     const old = localStorage.getItem('theme');
-    return { ...DEFAULTS, ...(old && !raw.theme ? { theme: old } : {}), ...raw };
+    const prefs = { ...DEFAULTS, ...(old && !raw.theme ? { theme: old } : {}), ...raw };
+    // Move the previous system default to the new dark theme once per browser.
+    if (localStorage.getItem('appearance-version') !== APPEARANCE_VERSION) {
+      if (prefs.theme === 'system') prefs.theme = 'dark';
+      localStorage.setItem('appearance-version', APPEARANCE_VERSION);
+      localStorage.setItem('prefs', JSON.stringify(prefs));
+    }
+    return prefs;
   } catch { return DEFAULTS; }
 };
 

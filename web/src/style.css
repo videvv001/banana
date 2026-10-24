@@ -1,20 +1,21 @@
-/* Design tokens. Light/dark values come from the redesign spec; everything below uses these, never raw colors. */
+/* Obsidian and gold theme tokens. */
 :root {
-  --bg: #F8F9FB; --surface: #FFFFFF; --text: #24252A; --muted: #727783; --accent: #6658ED; --border: #E7E9EF;
-  --accent-fg: #FFFFFF; --hover: #F0F1F5; --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  --ok: #1a8a4a; --bad: #c62828; --warn: #8a6a00; --focus: var(--accent);
-  --code-bg: #F3F4F8; --user-bg: #ECEBFD; --add-bg: #e6f6ec; --del-bg: #fdecec;
-  --tok-k: #8a3fd0; --tok-s: #1a7a4a; --tok-c: #8a8f9a; --tok-n: #b4540a;
-  --term-bg: #0f1115; --term-fg: #d7dae0;
+  --bg: #f7f3eb; --surface: #fffdf9; --text: #28221a; --muted: #6d6457; --accent: #8a601b; --border: #ded4c3;
+  --accent-fg: #ffffff; --hover: #eee7da; --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --ok: #24704d; --bad: #ad3e38; --warn: #826011; --focus: var(--accent);
+  --code-bg: #f0eade; --user-bg: #f1e5cf; --add-bg: #e1f0e5; --del-bg: #f9e6e1;
+  --tok-k: #8a601b; --tok-s: #24704d; --tok-c: #82796e; --tok-n: #a44f25;
+  --term-bg: #0a0a0b; --term-fg: #e9e2d7;
   --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
   --font: Inter, Geist, system-ui, -apple-system, 'Segoe UI', sans-serif; --mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
   color-scheme: light; font-family: var(--font); font-size: 15px;
 }
 :root[data-theme="dark"] {
-  --bg: #15171C; --surface: #22252C; --text: #F5F6F8; --muted: #A4A7B0; --accent: #8175FF; --border: #343740;
-  --hover: #2b2e36; --ok: #5fd38d; --bad: #ff7b7b; --warn: #e0b84a;
-  --code-bg: #1b1d23; --user-bg: #2d2c52; --add-bg: #17301f; --del-bg: #3a1c1f;
-  --tok-k: #c39bff; --tok-s: #7fd9a0; --tok-c: #7c8190; --tok-n: #f0a868;
+  --bg: #0b0b0d; --surface: #171719; --text: #f5f0e6; --muted: #aaa398; --accent: #d9ad58; --border: #35312b;
+  --accent-fg: #17120a; --hover: #252321; --accent-soft: color-mix(in srgb, var(--accent) 15%, transparent);
+  --ok: #82c5a0; --bad: #ef8b83; --warn: #e2bc70;
+  --code-bg: #111113; --user-bg: #30291d; --add-bg: #183025; --del-bg: #35201f;
+  --tok-k: #e5bd74; --tok-s: #9ed2ab; --tok-c: #918b83; --tok-n: #e9a975;
   color-scheme: dark;
 }
 :root[data-accent="blue"] { --accent: #2f6fe4; } :root[data-accent="green"] { --accent: #1f9d63; }
@@ -196,7 +197,7 @@ label.f { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; co
 /* Terminal + diff */
 .term { background: var(--term-bg); color: var(--term-fg); border-radius: var(--r-md); padding: var(--s3); font-family: var(--mono); font-size: .82rem; }
 .term pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
-.term .cmd { color: #8fd3ff; }
+.term .cmd { color: var(--accent); }
 .diff { font-family: var(--mono); font-size: .8rem; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: auto; background: var(--surface); max-height: 560px; }
 .diff div { padding: 0 10px; white-space: pre; min-height: 1.4em; }
 .diff .a { background: var(--add-bg); } .diff .d { background: var(--del-bg); } .diff .h { color: var(--muted); background: var(--hover); }
