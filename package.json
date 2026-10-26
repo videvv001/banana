@@ -1,7 +1,6 @@
 {
-  "name": "vbanana",
-  "private": true,
-  "type": "module",
+  "name": "banana",
+"type": "module",
   "scripts": {
     "start": "node supervisor/supervisor.mjs",
     "check": "node supervisor/verify.mjs"
