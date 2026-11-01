@@ -77,6 +77,8 @@ export function Chat({ session }: { session: Session }) {
   const stick = useRef(true);
   const ta = useRef<HTMLTextAreaElement>(null);
   const running = session.status === 'running';
+  const [staleSince, setStaleSince] = useState<number | null>(null);
+  const [staleElapsed, setStaleElapsed] = useState(0);
 
   useEffect(() => { loadSession(session.id).catch(() => {}); }, [session.id, online, loadSession]);
   const evs = useMemo(() => [...events.values()].filter((e) => e.session_id === session.id).sort((a, b) => a.seq! - b.seq!), [events, session.id]);
@@ -99,6 +101,15 @@ export function Chat({ session }: { session: Session }) {
 
   useEffect(() => { const el = scroller.current; if (el && stick.current) el.scrollTop = el.scrollHeight; }, [evs, partial]);
   useEffect(() => { const t = ta.current; if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; } }, [text]);
+
+  // Stale-turn detector: if running with no partial output for >30s, surface a warning.
+  const hasPartial = !!partial[session.id];
+  useEffect(() => {
+    if (!running || hasPartial) { setStaleSince(null); setStaleElapsed(0); return; }
+    setStaleSince((s) => s ?? Date.now());
+    const id = setInterval(() => setStaleElapsed(Math.floor((Date.now() - (staleSince ?? Date.now())) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [running, hasPartial, staleSince]);
 
   const send = (msg = text, imgs = images) => {
     if ((!msg.trim() && !imgs.length) || running) return;
@@ -191,7 +202,14 @@ export function Chat({ session }: { session: Session }) {
             return null;
           })}
           {partial[session.id] && <div className="msg bot"><Markdown text={partial[session.id]} /><span className="muted">▍</span></div>}
-          {running && !partial[session.id] && <div className="muted small"><span className="dot run" /> Working…</div>}
+          {running && !partial[session.id] && (
+            staleSince && staleElapsed >= 30
+              ? <div className="notice bad small" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  No response for {staleElapsed}s — the agent may be stuck.
+                  <button className="btn sm" onClick={() => api(`/api/sessions/${session.id}/interrupt`, {}).then(() => refresh())}>Force stop</button>
+                </div>
+              : <div className="muted small"><span className="dot run" /> Working…</div>
+          )}
           {failed && lastUser && <div><button className="btn sm" onClick={() => send(lastUser.data.text, lastUser.data.images ?? [])}><Icon n="refresh" /> Retry last message</button></div>}
         </div>
       </div>

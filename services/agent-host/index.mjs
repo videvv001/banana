@@ -84,15 +84,19 @@ function sendMessage(id, text, system = false, images = []) {
         if (api2.autoAllow(req.tool_name)) return queueMicrotask(() => turns.get(id)?.respond(req.request_id, true, req.input)); // policy: read-only tools skip the prompt
         owned.add(req.request_id); approvalOwner.set(req.request_id, { sessionId: id, input: req.input }); emit(id, 'approval', req); },
       exit: ({ gotResult, stderr }) => {
+        clearTimeout(turns.get(id)?._timeout);
         turns.delete(id);
         for (const rid of owned) if (approvalOwner.delete(rid)) emit(id, 'approval_done', { request_id: rid, allow: false, expired: true });
-        if (!gotResult) emit(id, 'notice', { text: `Turn ended without a result.\n${stderr}`.trim(), error: true });
+        if (!gotResult) emit(id, 'notice', { text: (timedOut ? 'Turn timed out after 10 minutes.' : `Turn ended without a result.\n${stderr}`).trim(), error: true });
         setStatus(id, 'idle');
         for (const h of turnEndHooks) { try { h(id, gotResult); } catch { /* a hook must not break turn cleanup */ } }
       },
     },
   });
-  turns.set(id, { ...turn, owned });
+  // ponytail: 10-min hard cap; a hung process blocks the session forever.
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; turns.get(id)?.kill(); }, 10 * 60_000);
+  turns.set(id, { ...turn, owned, _timeout: timeout });
   return 202;
 }
 
