@@ -113,7 +113,7 @@ function logs(name, bytes = 8000) {
 const sh = (cmd, args) => new Promise((resolve) =>
   execFile(cmd, args, { cwd: ROOT, timeout: 180000, maxBuffer: 20e6, windowsHide: true }, (err, stdout, stderr) =>
     resolve({ ok: !err, out: `${stdout}${stderr}`.trim() })));
-const git = (...a) => sh('git', ['-c', 'user.name=vbanana', '-c', 'user.email=vbanana@localhost', ...a]);
+const git = (...a) => sh('git', ['-c', 'user.name=banana', '-c', 'user.email=banana@localhost', ...a]);
 const verify = () => sh(process.execPath, ['supervisor/verify.mjs']);
 
 async function commitAll(msg) {

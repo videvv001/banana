@@ -158,7 +158,7 @@ export function createApi({ store, appRoot, dataDir, sendMessage, interrupt, isR
         const sessions = store.listSessions();
         let head = '';
         try { head = (await git(appRoot, ['log', '-1', '--format=%h %s (%cr)'])).out.trim(); } catch { /* no git */ }
-        const dbFile = path.join(dataDir, 'vbanana.db');
+        const dbFile = path.join(dataDir, 'banana.db');
         return json(200, { node: process.version, platform: process.platform, uptimeSeconds: Math.round(process.uptime()), sessions: sessions.length, events: store.maxSeq(),
           dbBytes: fs.existsSync(dbFile) ? fs.statSync(dbFile).size : 0, dataDir, appRoot, commit: head }), true;
       }

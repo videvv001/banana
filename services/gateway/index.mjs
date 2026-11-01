@@ -19,7 +19,7 @@ const secretFile = (name, make) => {
   return fs.readFileSync(f, 'utf8').trim();
 };
 const SECRET = secretFile('cookie-secret', () => crypto.randomBytes(32).toString('hex'));
-const PASSWORD = process.env.VBANANA_PASSWORD || secretFile('password', () => crypto.randomBytes(9).toString('base64url'));
+const PASSWORD = process.env.BANANA_PASSWORD || secretFile('password', () => crypto.randomBytes(9).toString('base64url'));
 const ctlToken = () => fs.readFileSync(path.join(DATA, 'ctl-token'), 'utf8').trim();
 
 const hmac = (s) => crypto.createHmac('sha256', SECRET).update(s).digest('hex');
@@ -37,7 +37,7 @@ const fails = new Map();
 const limited = (ip) => { const f = fails.get(ip); return !!f && f.reset > Date.now() && f.n >= 5; };
 const fail = (ip) => { const f = fails.get(ip); fails.set(ip, f && f.reset > Date.now() ? { ...f, n: f.n + 1 } : { n: 1, reset: Date.now() + 60000 }); };
 
-const LOGIN_PAGE = `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>vbanana</title>
+const LOGIN_PAGE = `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>banana</title>
 <style>body{font:16px system-ui;background:#14161a;color:#e6e6e6;display:grid;place-items:center;height:100vh;margin:0}
 form{display:grid;gap:10px;width:260px}input,button{font:inherit;padding:8px;border-radius:6px;border:1px solid #333;background:#1d2026;color:inherit}#e{color:#ff6b6b;min-height:1em}</style>
 <form id=f><input id=p type=password placeholder=password autofocus autocomplete=current-password><button>Sign in</button><div id=e></div></form>

@@ -1,4 +1,4 @@
-# vbanana
+# banana
 
 Self-modifying web UI over the Claude CLI. Four independent processes, supervised:
 
@@ -6,7 +6,7 @@ Self-modifying web UI over the Claude CLI. Four independent processes, supervise
 |---|---|---|---|
 | `supervisor/` | supervisor | 3100 (control) | Frozen lifeline. Owns the other processes, `ctl.mjs` client, `verify.mjs`, AI rules. Edit only on explicit user instruction. |
 | `services/gateway/` | gateway | 7420 | Login + reverse proxy: `/api/*` to agent-host, everything else to Vite. Stateless. |
-| `services/agent-host/` | agent-host | 3101 | Spawns one Claude CLI process per turn, SQLite event log (`data/vbanana.db`), SSE at `/api/stream`. |
+| `services/agent-host/` | agent-host | 3101 | Spawns one Claude CLI process per turn, SQLite event log (`data/banana.db`), SSE at `/api/stream`. |
 | `web/` | vite | 3102 | React + TS UI with HMR. |
 
 - Run everything: `npm start` (supervisor). Check everything: `npm run check`.

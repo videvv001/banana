@@ -15,7 +15,12 @@ import { createApi } from './api2.mjs';
 const PORT = +process.env.AGENT_PORT;
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CTL_TOKEN = fs.readFileSync(path.join(process.env.DATA_DIR, 'ctl-token'), 'utf8').trim();
-const store = openStore(path.join(process.env.DATA_DIR, 'vbanana.db'));
+// ponytail: one-time rename of the pre-rename DB (+ WAL files); delete once every install has restarted.
+for (const ext of ['', '-shm', '-wal']) {
+  const old = path.join(process.env.DATA_DIR, 'vbanana.db' + ext), neu = path.join(process.env.DATA_DIR, 'banana.db' + ext);
+  if (fs.existsSync(old) && !fs.existsSync(neu)) fs.renameSync(old, neu);
+}
+const store = openStore(path.join(process.env.DATA_DIR, 'banana.db'));
 
 const clients = new Set(); // SSE responses
 const turns = new Map(); // sessionId -> running turn
@@ -38,7 +43,7 @@ for (const s of store.listSessions()) {
 // Undo point before the AI touches the app's own code. The supervisor's `vb-good` tag is the rollback target.
 function checkpoint(cwd) {
   if (cwd !== APP_ROOT) return;
-  const git = (...a) => execFileSync('git', ['-c', 'user.name=vbanana', '-c', 'user.email=vbanana@localhost', ...a], { cwd, stdio: 'pipe' });
+  const git = (...a) => execFileSync('git', ['-c', 'user.name=banana', '-c', 'user.email=banana@localhost', ...a], { cwd, stdio: 'pipe' });
   try {
     git('add', '-A');
     if (git('status', '--porcelain').length) git('commit', '-m', 'vb: checkpoint before turn');

@@ -1,6 +1,6 @@
 # You are running inside the app you may modify
 
-This app (vbanana) is the web UI you are being used through. The user may ask you to change it: UI, backend, or this feature itself. Read CLAUDE.md for the layout.
+This app (banana) is the web UI you are being used through. The user may ask you to change it: UI, backend, or this feature itself. Read CLAUDE.md for the layout.
 
 ## Rules for changing the app
 1. Make the smallest change that does the job. Don't refactor unrelated code.

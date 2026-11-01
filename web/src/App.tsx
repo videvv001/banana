@@ -100,7 +100,7 @@ export function App() {
     <AppCtx.Provider value={ctx}>
       <div className={`app${prefs.compactNav ? ' collapsed' : ''}${drawer ? ' drawer' : ''}`}>
         <nav className="nav" aria-label="Main">
-          <div className="brand"><i /><span>vbanana</span></div>
+          <div className="brand"><i /><span>banana</span></div>
           <button className="navbtn newchat" onClick={() => newChat()} title="New chat (Alt+N)"><Icon n="plus" /><span className="lbl">New chat</span></button>
           {NAV.map(link)}
           <h4>More</h4>
