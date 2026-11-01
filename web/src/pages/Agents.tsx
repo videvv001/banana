@@ -4,6 +4,7 @@ import { useApp } from '../ctx';
 import { Icon, Skeleton, fmtDur, toast, useFetch } from '../ui';
 
 const NAMES = ['claude', 'codex'] as const;
+type LoginState = { running: boolean; exit: number | null; output: string };
 
 function AgentCard({ name, cli, models, reload }: { name: (typeof NAMES)[number]; cli?: Cli; models: string[]; reload: () => void }) {
   const { settings, saveSettings } = useApp();
@@ -25,16 +26,21 @@ function AgentCard({ name, cli, models, reload }: { name: (typeof NAMES)[number]
     const r = await api<{ ok: boolean; output: string }>(`/api/clis/${name}/install`, {});
     setMsg(r.ok ? 'Installed.' : `Install failed:\n${r.output}`); reload();
   });
-  const login = () => run('login', async () => {
-    setMsg('Complete the login in the browser window that opened on this machine…');
-    await api(`/api/clis/${name}/login`, {});
-    for (let i = 0; i < 60; i++) { // poll for 2 minutes
-      await new Promise((r) => setTimeout(r, 2000));
-      const s = await fetch('/api/clis').then((r) => r.json()).catch(() => null);
-      if (s?.[name]?.loggedIn) { setMsg('Logged in.'); reload(); return; }
-    }
-    setMsg('Login not detected yet.');
-  });
+  const [login, setLogin] = useState<LoginState | null>(null);
+  const [code, setCode] = useState('');
+  useEffect(() => { api<LoginState>(`/api/clis/${name}/login`).then((s) => s.running && setLogin(s)).catch(() => {}); }, [name]);
+  const startLogin = () => run('login', async () => { setMsg(''); setCode(''); setLogin(await api<LoginState>(`/api/clis/${name}/login`, {})); });
+  useEffect(() => {
+    if (!login?.running) return;
+    const t = setTimeout(async () => {
+      const s = await api<LoginState>(`/api/clis/${name}/login`).catch(() => null);
+      if (!s) return;
+      setLogin(s);
+      if (!s.running) { setMsg(s.exit === 0 ? 'Logged in.' : 'Login did not complete.'); reload(); }
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [login, name, reload]);
+  const sendCode = () => run('code', async () => { await api(`/api/clis/${name}/login/code`, { code }); setCode(''); });
   const save = () => saveSettings({ cliPaths: { ...settings!.cliPaths, [name]: path.trim() }, instructions: { ...settings!.instructions, [name]: instr }, defaultModels: { ...settings!.defaultModels, [name]: model.trim() } }).then(() => { toast('Saved'); reload(); });
   const isDefault = settings?.defaultAgent === name;
 
@@ -60,8 +66,19 @@ function AgentCard({ name, cli, models, reload }: { name: (typeof NAMES)[number]
         <button className="btn primary" onClick={save} disabled={!settings}>Save</button>
         <button className="btn" disabled={!!busy} onClick={test}><Icon n="refresh" /> Test connection</button>
         <button className="btn" disabled={!!busy} onClick={install}>{cli?.installed ? 'Update' : 'Install'}</button>
-        <button className="btn" disabled={!!busy || !cli?.installed} onClick={login}>{cli?.loggedIn ? 'Re-login' : 'Login with subscription'}</button>
+        <button className="btn" disabled={!!busy || !cli?.installed} onClick={startLogin}>{cli?.loggedIn ? 'Re-login' : 'Login with subscription'}</button>
       </div>
+      {login?.output && (
+        <pre className="small" style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          {login.output.trim().split(/(https?:\/\/\S+)/g).map((p, i) => (i % 2 ? <a key={i} href={p} target="_blank" rel="noreferrer">{p}</a> : p))}
+        </pre>
+      )}
+      {login?.running && /paste code/i.test(login.output) && (
+        <form className="row" onSubmit={(e) => { e.preventDefault(); if (code.trim()) sendCode(); }}>
+          <input className="grow" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Paste the code from the sign-in page" aria-label="Login code" autoComplete="off" />
+          <button className="btn primary" disabled={!!busy || !code.trim()}>Submit code</button>
+        </form>
+      )}
       {msg && <pre className="small" style={{ margin: 0, whiteSpace: 'pre-wrap' }} role="status">{msg}</pre>}
     </section>
   );

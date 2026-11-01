@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { openStore } from './store.mjs';
 import { startTurn } from './claude.mjs';
 import { startCodexTurn } from './codex.mjs';
-import { codexModels, cliStatus, cliInstall, cliLogin, isCli } from './clis.mjs';
+import { codexModels, cliStatus, cliInstall, cliLogin, cliLoginState, cliLoginCode, isCli } from './clis.mjs';
 import { createApi } from './api2.mjs';
 
 const PORT = +process.env.AGENT_PORT;
@@ -143,8 +143,13 @@ http.createServer(async (req, res) => {
       const [, name, action] = req.m;
       if (!isCli(name)) return json(404, { error: 'unknown cli' });
       if (action === 'install') return json(200, await cliInstall(name));
-      cliLogin(name);
-      return json(200, { ok: true });
+      return json(200, cliLogin(name, bin(name)));
+    }
+    if (is('GET', /^\/api\/clis\/(\w+)\/login$/)) return isCli(req.m[1]) ? json(200, cliLoginState(req.m[1])) : json(404, { error: 'unknown cli' });
+    if (is('POST', /^\/api\/clis\/(\w+)\/login\/code$/)) {
+      const { code } = await readJson(req);
+      if (!isCli(req.m[1]) || typeof code !== 'string' || !/^[^\r\n]{1,512}$/.test(code.trim())) return json(400, { error: 'bad code' });
+      return cliLoginCode(req.m[1], code.trim()) ? json(200, { ok: true }) : json(409, { error: 'no login in progress' });
     }
     if (is('GET', /^\/api\/sessions$/)) return json(200, { sessions: store.listSessions(), maxSeq: store.maxSeq() });
     if (is('POST', /^\/api\/sessions$/)) {

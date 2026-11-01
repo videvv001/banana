@@ -1,12 +1,14 @@
 // Setup helpers for the claude / codex CLIs: status, npm install, subscription login (opens the browser on this machine).
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+// Logins must work headless (no browser on the host): claude prints a URL and reads the pasted code from stdin,
+// codex --device-auth prints a URL + one-time code and polls until the user finishes in their own browser.
 const CLIS = {
   claude: { pkg: '@anthropic-ai/claude-code', status: ['auth', 'status'], login: ['auth', 'login', '--claudeai'] },
-  codex: { pkg: '@openai/codex', status: ['login', 'status'], login: ['login'] },
+  codex: { pkg: '@openai/codex', status: ['login', 'status'], login: ['login', '--device-auth'] },
 };
 export const isCli = (name) => Object.hasOwn(CLIS, name);
 
@@ -47,9 +49,31 @@ export async function cliInstall(name) {
   return { ok: r.code === 0, output: r.out.slice(-2000) };
 }
 
-// Fire and forget: the CLI opens the browser and exits once the login completes; the UI polls status.
-export function cliLogin(name) {
-  const p = spawn(name, CLIS[name].login, { shell: sh, windowsHide: true, detached: true, stdio: 'ignore' });
-  p.on('error', () => {});
-  p.unref();
+// One login process per CLI; the UI polls cliLoginState and shows its output (links, codes, prompts).
+const logins = {};
+const ANSI = /\x1b\[[0-9;?]*[A-Za-z]/g;
+const kill = (p) => { if (p.exitCode !== null) return; if (sh) spawnSync('taskkill', ['/PID', String(p.pid), '/T', '/F']); else p.kill(); };
+
+export function cliLogin(name, bin = name) {
+  if (logins[name]) kill(logins[name].proc);
+  const proc = spawn(q(bin), CLIS[name].login, { shell: sh, windowsHide: true });
+  const l = logins[name] = { proc, out: '', running: true, exit: null };
+  const add = (d) => { l.out = (l.out + d.toString().replace(ANSI, '')).slice(-8000); };
+  proc.stdout.on('data', add); proc.stderr.on('data', add);
+  proc.on('error', (e) => add(`\n${e.message}`));
+  const timer = setTimeout(() => kill(proc), 15 * 60000); // device codes expire after 15 min anyway
+  proc.on('close', (code) => { clearTimeout(timer); l.running = false; l.exit = code; });
+  return cliLoginState(name);
+}
+
+export function cliLoginState(name) {
+  const l = logins[name];
+  return l ? { running: l.running, exit: l.exit, output: l.out } : { running: false, exit: null, output: '' };
+}
+
+export function cliLoginCode(name, code) {
+  const l = logins[name];
+  if (!l?.running) return false;
+  l.proc.stdin.write(`${code}\n`);
+  return true;
 }
